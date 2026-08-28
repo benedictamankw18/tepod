@@ -1,0 +1,377 @@
+import { useEffect, useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
+import AuthLayout from '../components/AuthLayout'
+import GoogleButton from '../components/GoogleButton'
+import PasswordInput from '../components/PasswordInput'
+import { register, checkAvailability } from '../lib/api'
+import { setSession } from '../lib/auth'
+
+const inputCls =
+  'w-full rounded-lg border border-line px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-leaf text-ink'
+const labelCls = 'block text-sm font-medium text-muted mb-1'
+
+const initialChecks = { phone: 'idle', email: 'idle', username: 'idle' }
+
+const looksFree = {
+  phone: 'This phone is available.',
+  email: 'This email is available.',
+  username: 'This username is available.',
+}
+const looksTaken = {
+  phone: 'This phone number is already registered.',
+  email: 'This email is already registered.',
+  username: 'This username is already taken.',
+}
+
+// Build 3 candidate usernames from a full name. Kept to letters/numbers/_/. (the same
+// rules the backend enforces) and clipped to 30 chars.
+function buildSuggestions(name) {
+  const parts = String(name || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z]+/g, ' ')
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+  const first = parts[0] || ''
+  const last = parts[parts.length - 1] || ''
+  if (!first || first.length < 3) return []
+
+  const rand = 100 + Math.floor(Math.random() * 900)
+  const seen = new Set()
+  const add = (u) => {
+    const clean = String(u || '').replace(/[^a-zA-Z0-9_.]/g, '').slice(0, 30)
+    if (clean.length >= 3) seen.add(clean)
+  }
+
+  add(first)
+  if (last && last !== first) {
+    add(`${first}.${last}`)
+    add(`${first}_${last}`)
+  }
+  add(`${first}${rand}`)
+  add(`${first}_farmer`)
+  if (last && last !== first) add(`${last}${rand}`)
+
+  let guard = 0
+  while (seen.size < 3 && guard < 20) {
+    guard++
+    add(`${first}${guard * 111 + rand}`)
+  }
+  return [...seen].slice(0, 3)
+}
+
+export default function Register() {
+  const navigate = useNavigate()
+  const [form, setForm] = useState({
+    name: '',
+    phone: '',
+    email: '',
+    username: '',
+    password: '',
+    confirmPassword: '',
+    role: 'farmer',
+    buyerType: '',
+    location: '',
+  })
+  const [checks, setChecks] = useState(initialChecks)
+  const [error, setError] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [suggestions, setSuggestions] = useState([])
+
+  // Whenever the name changes, generate 3 candidate usernames and check each one
+  // for availability, tagging them so the user can pick a free one. State is only
+  // updated in the async callback (results resolve) so we don't set state during render.
+  useEffect(() => {
+    const candidates = buildSuggestions(form.name)
+    if (!candidates.length) return
+    let cancelled = false
+    Promise.all(
+      candidates.map((value) =>
+        checkAvailability({ username: value })
+          .then((res) => ({ value, available: res.available }))
+          .catch(() => ({ value, available: true }))
+      )
+    ).then((results) => {
+      if (cancelled) return
+      setSuggestions(results.map((r) => ({ value: r.value, status: r.available ? 'available' : 'taken' })))
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [form.name])
+
+  const onNameChange = (e) => {
+    setForm((f) => ({ ...f, name: e.target.value }))
+    setSuggestions([])
+  }
+
+  const applySuggestion = (value, status) => {
+    setForm((f) => ({ ...f, username: value }))
+    setChecks((c) => ({ ...c, username: status }))
+  }
+
+  const set = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }))
+  const isBuyer = form.role === 'buyer'
+
+  // Run a uniqueness check for phone/email/username when the field loses focus and
+  // has a value. Matching is normalized server-side (E.164 for phone, case-insensitive
+  // for email/username), mirroring the register endpoint. A stale response is ignored
+  // if the value changed while the request was in flight.
+  const checkField = async (field, value) => {
+    const v = value.trim()
+    if (!v) {
+      setChecks((c) => ({ ...c, [field]: 'idle' }))
+      return
+    }
+    setChecks((c) => ({ ...c, [field]: 'checking' }))
+    try {
+      const res = await checkAvailability({ [field]: v })
+      setChecks((c) => (form[field] === value ? { ...c, [field]: res.available ? 'available' : 'taken' } : c))
+    } catch {
+      setChecks((c) => ({ ...c, [field]: 'idle' }))
+    }
+  }
+
+  const onToggleField = (field) => (e) => {
+    setForm((f) => ({ ...f, [field]: e.target.value }))
+    setChecks((c) => ({ ...c, [field]: 'idle' }))
+  }
+
+  const fieldMsg = (field) => {
+    if (checks[field] === 'checking') return { text: 'Checking…', cls: 'text-muted' }
+    if (checks[field] === 'available') return { text: looksFree[field], cls: 'text-leaf' }
+    if (checks[field] === 'taken') return { text: looksTaken[field], cls: 'text-red-700' }
+    return null
+  }
+
+  const anyTaken = ['phone', 'email', 'username'].some((f) => form[f].trim() && checks[f] === 'taken')
+  const passwordMismatch = form.confirmPassword.length > 0 && form.confirmPassword !== form.password
+
+  const submit = async (e) => {
+    e.preventDefault()
+    setError('')
+    if (!form.name || !form.password) {
+      setError('Name and password are required.')
+      return
+    }
+    if (passwordMismatch) {
+      setError('Passwords do not match.')
+      return
+    }
+    if (!form.phone && !form.email) {
+      setError('At least one of phone or email is required.')
+      return
+    }
+    if (isBuyer && !form.buyerType) {
+      setError('Buyer type is required for a buyer account.')
+      return
+    }
+    if (anyTaken) {
+      setError('Please use a different phone, email, or username.')
+      return
+    }
+    setBusy(true)
+    try {
+      const result = await register({
+        name: form.name,
+        phone: form.phone || undefined,
+        email: form.email || undefined,
+        username: form.username || undefined,
+        password: form.password,
+        role: form.role,
+        buyerType: isBuyer ? form.buyerType : undefined,
+        location: form.location || undefined,
+      })
+      setSession(result.user, result.token)
+      navigate('/')
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <AuthLayout title="Create your account" subtitle="Join as a farmer or a buyer">
+      {error && (
+        <div className="mb-4 rounded-md bg-red-50 border border-red-200 px-3 py-2 text-sm text-red-700">
+          {error}
+        </div>
+      )}
+
+      <form onSubmit={submit} className="space-y-4">
+        <div>
+          <label className={labelCls}>I am a</label>
+          <div className="flex rounded-lg bg-white border border-line p-1">
+            {['farmer', 'buyer'].map((r) => (
+              <button
+                key={r}
+                type="button"
+                onClick={() => setForm((f) => ({ ...f, role: r, buyerType: '' }))}
+                className={`flex-1 rounded-md py-2 text-sm font-medium capitalize transition ${
+                  form.role === r ? 'bg-lime text-ink shadow' : 'text-muted hover:text-ink'
+                }`}
+              >
+                {r}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <label className={labelCls}>Full name</label>
+          <input className={inputCls} value={form.name} onChange={onNameChange} placeholder="Ama Mensah" />
+        </div>
+
+        {isBuyer && (
+          <div>
+            <label className={labelCls}>Buyer type</label>
+            <select className={inputCls} value={form.buyerType} onChange={set('buyerType')}>
+              <option value="">Select buyer type…</option>
+              <option value="wholesale">Wholesale</option>
+              <option value="retail">Retail</option>
+              <option value="processor">Processor</option>
+            </select>
+          </div>
+        )}
+
+        <div>
+          <label className={labelCls}>
+            Phone <span className="text-muted">(or email below)</span>
+          </label>
+          <input
+            className={inputCls}
+            value={form.phone}
+            onChange={onToggleField('phone')}
+            onBlur={() => checkField('phone', form.phone)}
+            placeholder="0241234567"
+            autoComplete="tel"
+          />
+          {fieldMsg('phone') && (
+            <p className={`mt-1 text-xs ${fieldMsg('phone').cls}`}>{fieldMsg('phone').text}</p>
+          )}
+        </div>
+
+        <div>
+          <label className={labelCls}>Email (optional)</label>
+          <input
+            className={inputCls}
+            type="email"
+            value={form.email}
+            onChange={onToggleField('email')}
+            onBlur={() => checkField('email', form.email)}
+            placeholder="you@example.com"
+            autoComplete="email"
+          />
+          {fieldMsg('email') && (
+            <p className={`mt-1 text-xs ${fieldMsg('email').cls}`}>{fieldMsg('email').text}</p>
+          )}
+        </div>
+
+        <div>
+          <label className={labelCls}>Username (optional)</label>
+          <input
+            className={inputCls}
+            value={form.username}
+            onChange={onToggleField('username')}
+            onBlur={() => checkField('username', form.username)}
+            placeholder="3-30 chars, letters/numbers/_/."
+            autoComplete="username"
+          />
+          {fieldMsg('username') && (
+            <p className={`mt-1 text-xs ${fieldMsg('username').cls}`}>{fieldMsg('username').text}</p>
+          )}
+
+          {suggestions.length > 0 && (
+            <div className="mt-2">
+              <p className="text-xs text-muted mb-1">Suggested usernames</p>
+              <div className="flex flex-wrap gap-2">
+                {suggestions.map((s) => (
+                  <button
+                    key={s.value}
+                    type="button"
+                    disabled={s.status === 'taken'}
+                    onClick={() => applySuggestion(s.value, s.status)}
+                    className={`rounded-full border px-2.5 py-1 text-xs font-medium transition ${
+                      s.status === 'taken'
+                        ? 'border-line text-muted line-through cursor-not-allowed'
+                        : s.status === 'available'
+                          ? 'border-line bg-white text-ink hover:bg-lime hover:border-lime'
+                          : 'border-line text-muted'
+                    }`}
+                  >
+                    {s.value}
+                    {s.status === 'available' && <span className="ml-1 text-leaf">•</span>}
+                    {s.status === 'taken' && <span className="ml-1">×</span>}
+                  </button>
+                ))}
+              </div>
+              <p className="text-[10px] text-muted mt-1">Tap a suggestion to use it.</p>
+            </div>
+          )}
+        </div>
+
+        <PasswordInput
+          label="Password"
+          value={form.password}
+          onChange={set('password')}
+          placeholder="••••••••"
+          autoComplete="new-password"
+        />
+
+        <div>
+          <PasswordInput
+            label="Confirm password"
+            value={form.confirmPassword}
+            onChange={set('confirmPassword')}
+            placeholder="••••••••"
+            autoComplete="new-password"
+          />
+          {passwordMismatch && (
+            <p className="mt-1 text-xs text-red-700">Passwords do not match.</p>
+          )}
+        </div>
+
+        <div>
+          <label className={labelCls}>Location (optional)</label>
+          <input className={inputCls} value={form.location} onChange={set('location')} placeholder="Kasoa, Central Region" />
+        </div>
+
+        <button
+          type="submit"
+          disabled={busy || anyTaken || passwordMismatch}
+          className="w-full rounded-lg bg-leaf py-2.5 text-sm font-semibold text-white hover:bg-leaf-dark disabled:opacity-50"
+        >
+          {busy ? 'Creating…' : 'Create account'}
+        </button>
+      </form>
+
+      <div className="flex items-center justify-center gap-3 my-4">
+        <div className="h-px flex-1 bg-line" />
+        <span className="text-xs text-muted">or</span>
+        <div className="h-px flex-1 bg-line" />
+      </div>
+
+      <GoogleButton
+        role={form.role}
+        buyerType={isBuyer ? form.buyerType : undefined}
+        onSuccess={() => navigate('/')}
+        onError={(err) => setError(err.message)}
+      />
+
+      {isBuyer && !form.buyerType && (
+        <p className="mt-2 text-xs text-gold text-center">
+          Select a buyer type above before using Google sign-up.
+        </p>
+      )}
+
+      <p className="mt-6 text-center text-sm text-muted">
+        Already have an account?{' '}
+        <Link to="/login" className="font-medium text-leaf hover:underline">
+          Sign in
+        </Link>
+      </p>
+    </AuthLayout>
+  )
+}

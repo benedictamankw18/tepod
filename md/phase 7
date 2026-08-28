@@ -1,0 +1,586 @@
+# AgriSmart AI — 7 Implementation Phases
+
+*Detailed Breakdown: Digital Marketplace and Forecasting Platform to Reduce Post-Harvest Tomato Losses in Ghana*
+
+**Version:** 1.0  
+**Prepared:** August 2026  
+**Duration:** ~38 weeks (~9 months) from design kickoff to expansion decision  
+**Companion Document:** AgriSmart AI Project Plan (v1.0)
+
+---
+
+## Overview
+
+This document provides a detailed breakdown of each of the 7 phases required to deliver AgriSmart AI from inception to a go/no-go decision on nationwide expansion. Each phase has clear objectives, deliverables, exit criteria, and dependencies.
+
+---
+
+## Phase 0: Foundation (Complete)
+
+**Status:** ✅ **Complete**
+
+### Objectives
+- Conduct field research to understand farmer, buyer, and seller pain points
+- Develop the project abstract and value proposition
+- Write the Software Requirements Specification (SRS)
+
+### Activities
+- Field interviews with smallholder tomato, maize, and potato farmers
+- Interviews with market sellers (e.g., Ashanti Market, Kasoa)
+- Review of post-harvest loss rates and current payment/transport practices
+- Documentation of baseline metrics and user needs
+
+### Deliverables
+- Field interview findings report
+- AgriSmart AI Project Abstract
+- SRS v1.0 (functional requirements FR-1.x through FR-9.x, non-functional requirements NFR-1.x through NFR-4.x)
+
+### Exit Criteria
+- SRS approved by product and technical leads
+- Field evidence documented and traceable
+- Stakeholder buy-in confirmed
+
+---
+
+## Phase 1: Design & Planning
+
+**Duration:** 4 weeks  
+**Status:** Current
+
+### Objectives
+- Finalize the technical architecture for MVP and pilot
+- Secure all critical external integrations (SMS/USSD gateway, mobile money, data sources)
+- Recruit and confirm pilot partners
+- Establish baseline metrics collection
+
+### Workstream 1: Technical Architecture
+
+| Task | Owner | Duration | Notes |
+|---|---|---|---|
+| Finalize backend architecture (data model, API design) | Backend lead | 1 week | Express.js, in-memory store (Phase 2), Postgres design (Phase 4) |
+| Select USSD/SMS gateway partner (e.g., Africa's Talking, Hubtel) | Engineering lead + Product | 1.5 weeks | Define webhook contract, rate limits, costs |
+| Select mobile money provider (e.g., MTN MoMo, AirtelTigo Money) | Finance + Engineering | 1.5 weeks | Define API contract, settlement terms, fees |
+| Select mobile app stack (React Native, Flutter, or native Android) | Mobile lead | 0.5 weeks | Low-bandwidth support is critical |
+| Define data persistence strategy for Phase 2–4 | Architecture lead | 0.5 weeks | In-memory for MVP; Postgres for Phase 4 |
+
+**Deliverable:** Technical Architecture Document (backend, USSD/SMS, mobile money, mobile app, database roadmap)
+
+### Workstream 2: External Integration Contracting
+
+| Task | Owner | Duration | Dependency |
+|---|---|---|---|
+| Contract SMS/USSD gateway (Phase 1 decision) | Business dev | 1.5 weeks | Vendor selection |
+| Contract mobile money provider (Phase 1 decision) | Finance | 1.5 weeks | Vendor selection |
+| Secure historical price data (Central Region tomato) | Data lead | 2 weeks | May require Ministry of Food & Agriculture or partner market data |
+| Secure weather data for pilot region | Data lead | 1.5 weeks | E.g., NOAA, OpenWeatherMap, or local meteorology service |
+
+**Deliverables:** Signed contracts; data access credentials; API documentation from vendors
+
+### Workstream 3: Pilot Partner Recruitment
+
+| Partner Type | Target | Key Contacts | Exit Criteria |
+|---|---|---|---|
+| Farmer Group / Cooperative | Central Region tomato farmers | E.g., established groups near Kasoa, Donasi Market | Signed MOU; 30–50 farmers committed |
+| Market Seller Association | Retail markets in Central Region | E.g., Ashanti Market, Kasoa Central Market | Signed MOU; 15–20 sellers committed |
+| Transport Provider | Vehicle owner/operators in region | Private logistics firms or cooperatives | Signed MOU; 3–5 vehicles committed |
+
+**Deliverable:** Partnership MOUs; list of confirmed pilot users and roles
+
+### Workstream 4: Baseline Data Collection Setup
+
+| Metric | Method | Owner | Timeline |
+|---|---|---|---|
+| Current post-harvest loss rate (farmer reported) | Survey / interviews | Field ops + M&E | Weeks 1–4 |
+| Current farm-gate price distribution | Market data + farmer interviews | Data lead | Weeks 1–4 |
+| Current payment delay rates | Seller / buyer interviews | Field ops | Weeks 2–4 |
+| Current transport costs and availability | Transport provider interviews | Field ops | Weeks 2–4 |
+| User device mix (feature phones vs. smartphones) | Survey | Field ops | Weeks 1–2 |
+| Literacy levels and language preferences | Survey | Field ops | Weeks 1–2 |
+
+**Deliverable:** Baseline metrics report; pilot user registry with device types and language preferences
+
+### Phase 1 Exit Criteria
+- ✅ Technical architecture document approved by CTO
+- ✅ SMS/USSD gateway contract signed and sandbox access confirmed
+- ✅ Mobile money provider contract signed and API sandbox available
+- ✅ Historical price and weather data access confirmed
+- ✅ All three pilot partner types (farmer group, market seller association, transporter) have signed MOUs
+- ✅ Baseline metrics collected for 30–50 pilot users
+- ✅ Project kickoff meeting held with all workstreams
+
+---
+
+## Phase 2: MVP Build
+
+**Duration:** 8 weeks (Weeks 5–12)  
+**Dependency:** Phase 1 complete
+
+### Objectives
+- Build core marketplace data model and REST API
+- Build USSD menu system and SMS notification infrastructure
+- Build low-bandwidth mobile app
+- Build admin dashboard (read-only)
+- Achieve end-to-end flow: farmer lists produce → buyer pre-commits → farmer accepts
+
+### Workstream 1: Backend & Data Model
+
+| Feature Area | Requirements | Owner | Duration | Notes |
+|---|---|---|---|---|
+| Data Model | Users, listings, pre-commitments, transactions, ratings, transport requests | Backend lead | 1 week | In-memory store; schema designed for Postgres migration |
+| User Registration API | FR-7.1: Register farmer, buyer, market seller, transporter | Backend eng. | 1 week | Phone number, role, basic KYC |
+| Produce Listing API | FR-1.1: Create/read/update listings (crop, quantity, price, harvest date) | Backend eng. | 1.5 weeks | Search & filter by crop, location, status (pending/active/sold) |
+| Pre-Commitment API | FR-1.3, FR-1.5: Submit/accept/reject/counter pre-commitment | Backend eng. | 1.5 weeks | State machine: pending → accepted/rejected/countered |
+| Price Information API | FR-2.1, FR-2.2: Current and historical prices by crop/market | Backend eng. | 1 week | Seeded with demo data from Phase 1 baseline |
+| Notification Service | FR-1.4, FR-8.1: Log SMS notifications; send to USSD | Backend eng. | 1 week | Stub for SMS; will wire to real gateway in Phase 3 |
+| Admin Dashboard Backend | FR-9.1: Read-only summary endpoints | Backend eng. | 0.5 weeks | Aggregate counts, recent transactions, user activity |
+
+**Deliverable:** REST API running on `localhost:3000/api/...`; in-memory store operational
+
+### Workstream 2: USSD & SMS
+
+| Feature | Requirements | Owner | Duration | Notes |
+|---|---|---|---|---|
+| USSD Menu Structure | FR-8.2: Registration, list produce, check price, check pre-commitment status | USSD eng. | 2 weeks | Session-based menu; `*` separator for input accumulation; `CON`/`END` response format |
+| USSD Registration Flow | FR-7.1: Farmer/buyer/seller/transporter registration via USSD | USSD eng. | 1 week | Collect phone, role, crop type(s), location |
+| USSD Listing Flow | FR-1.1, FR-1.2: Create listing or browse/search | USSD eng. | 1.5 weeks | Guided menu to collect listing details or filter parameters |
+| USSD Price Check | FR-2.1: Query current price by crop/market | USSD eng. | 0.5 weeks | Returns current and trend over last 4 weeks |
+| USSD Status Check | FR-1.4: Check pre-commitment and transaction status | USSD eng. | 1 week | List all active pre-commitments, their status, and next steps |
+| SMS Notification Stub | FR-1.4, FR-8.1: Log all outbound notifications to `/api/notifications` | USSD eng. | 0.5 weeks | Real gateway integration in Phase 3 |
+| USSD Webhook Contract | Mimic Africa's Talking / Hubtel contract: sessionId, phoneNumber, text | USSD eng. | 0.5 weeks | Test with curl; integrate with chosen gateway in Phase 3 |
+
+**Deliverable:** USSD menu accessible via `POST http://localhost:3000/ussd`; SMS logging active
+
+### Workstream 3: Mobile App (Low-Bandwidth)
+
+| Feature | Requirements | Owner | Duration | Notes |
+|---|---|---|---|---|
+| App Architecture | React Native / Flutter; offline-capable | Mobile lead | 1 week | Target minimum Android 8; < 10 MB app size |
+| User Registration Screen | FR-7.1: Register with phone, role, crop type, location | Mobile eng. | 1 week | Form validation; phone number verification stub (real SMS in Phase 3) |
+| List Produce Screen | FR-1.1: Create listing; auto-populate user defaults | Mobile eng. | 1.5 weeks | Quantity picker, date selector, price input, location from device or manual |
+| Browse/Search Listings | FR-1.2: Filter by crop, location, quantity range, harvest window | Mobile eng. | 1.5 weeks | Pagination for low bandwidth; sort by distance / best match |
+| Pre-Commitment Submission | FR-1.3, FR-1.5: Submit pre-commitment; view status; accept/reject/counter | Mobile eng. | 1.5 weeks | Real-time update on status changes (or poll if no WebSocket) |
+| Price Check Screen | FR-2.1, FR-2.2: Current and historical prices | Mobile eng. | 1 week | Line chart or simple trend indicators |
+| Admin Dashboard (Frontend) | FR-9.1: Summary view of listings, users, transactions | Mobile eng. | 1 week | Read-only; pull data from `/api/summary` |
+
+**Deliverable:** APK or IPA ready for internal testing; screens match USSD flows
+
+### Workstream 4: Admin Dashboard (Web)
+
+| Component | Requirements | Owner | Duration | Notes |
+|---|---|---|---|---|
+| Dashboard Layout | FR-9.1: Overview of platform metrics | Frontend lead | 1 week | User count, listing count, transaction volume, average prices |
+| User Management | View registered users; filter by role/region | Frontend eng. | 1 week | Read-only for Phase 2; verification/flagging in Phase 3 |
+| Listing Viewer | View all listings; filter by status, crop, date | Frontend eng. | 1 week | Read-only; sort by newest, most pre-commitments, etc. |
+| Transaction Log | View completed transactions, payment status | Frontend eng. | 0.5 weeks | Summary only; detailed audit in Phase 3 |
+| Admin Backend | Expose `/api/summary`, `/api/users`, `/api/listings`, etc. | Backend eng. | 0.5 weeks | No authentication for MVP; add in Phase 3 |
+
+**Deliverable:** Admin dashboard running on `http://localhost:3000/admin`
+
+### Phase 2 Exit Criteria
+- ✅ All 14 API endpoints from README.md operational and tested
+- ✅ USSD registration, list produce, check price, check status flows complete and testable
+- ✅ Mobile app (iOS/Android) passes internal QA for core flows
+- ✅ Admin dashboard loads and displays real data
+- ✅ End-to-end flow verified: register farmer → register buyer → create listing → submit pre-commitment → accept → view in admin dashboard
+- ✅ In-memory store handles 100+ users, 50+ listings without data loss or performance degradation
+- ✅ README.md updated with all endpoints and example curl commands
+
+---
+
+## Phase 3: Forecasting & Logistics Build
+
+**Duration:** 6 weeks (Weeks 13–18)  
+**Dependency:** Phase 2 complete; baseline data available
+
+### Objectives
+- Build AI forecasting module v1: harvest timing and sell-now-vs-wait recommendations
+- Implement payment tracking and mobile money integration (stub → real)
+- Build transport request and coordination flows
+- Add trust/rating indicators
+
+### Workstream 1: AI Forecasting Module
+
+| Component | Requirements | Owner | Duration | Notes |
+|---|---|---|---|---|
+| Data Pipeline | Ingest historical prices, weather data, seasonal patterns | Data/ML lead | 2 weeks | Clean and normalize price data; align with weather timeseries |
+| Harvest Timing Model | FR-3.1: Recommend harvest timing based on price/weather forecast | ML engineer | 2 weeks | Linear regression or similar; input: weather 14–30 days ahead; output: confidence % |
+| Sell-Now-vs-Wait Model | FR-3.2, FR-3.3: Recommend selling price and window | ML engineer | 1.5 weeks | Compare predicted future price vs. current spoilage risk |
+| Confidence/Risk Indicator | FR-3.5: Show confidence level and risk factors for each recommendation | ML engineer | 1 week | E.g., "60% confidence; risk: data unavailable for last 2 weeks" |
+| API Endpoint | `/api/forecasts?cropType=&location=&harvestDate=` | Backend eng. | 1 week | Call forecasting service; cache results for 24 hrs |
+| Validation | Test recommendations against held-out historical data (20% test set) | Data/ML lead | 1 week | Target: recommendations correct ≥60% of the time |
+
+**Deliverable:** `/api/forecasts` endpoint returning harvest timing and sell-now-vs-wait recommendations with confidence scores
+
+### Workstream 2: Payment Tracking & Mobile Money
+
+| Component | Requirements | Owner | Duration | Notes |
+|---|---|---|---|---|
+| Transaction Data Model | FR-5.1, FR-5.2: Record payment obligations, status, reminders | Backend eng. | 0.5 weeks | Extend Phase 2 model with payment_status, due_date, reminders_sent |
+| Mobile Money API Integration | FR-5.3: Real MTN MoMo (or AirtelTigo) Collections/Disbursements | Integration eng. | 2 weeks | Initiate payment from buyer; confirm via USSD PIN; settle to farmer account |
+| Payment Reminder Service | FR-5.5: Remind overdue payers via SMS/USSD | Backend eng. | 1 week | Daily cron job; escalate after N days |
+| Reliability Score | FR-5.4: Calculate buyer/farmer payment reliability based on history | Backend eng. | 1 week | E.g., "on-time payment rate: 95%" |
+| Admin Payment Dashboard | View pending, in-progress, completed, overdue transactions | Frontend eng. | 1 week | Identify high-risk buyers/sellers for follow-up |
+
+**Deliverable:** `POST /api/transactions/:id/pay` wired to real mobile money provider; payment reminders functional
+
+### Workstream 3: Transport Coordination
+
+| Component | Requirements | Owner | Duration | Notes |
+|---|---|---|---|---|
+| Transport Request Model | FR-4.1, FR-4.2: Create transport request (origin, destination, produce type, date) | Backend eng. | 1 week | Extend Phase 2 model with location, vehicle type, capacity |
+| Transport Request API | Submit/list/search transport requests | Backend eng. | 1 week | Buyers/farmers can request; transporters can browse |
+| Transporter Assignment | FR-4.3: Transporter accepts request; farmer confirms | Backend eng. | 1 week | State machine: open → assigned → confirmed → in_transit → delivered |
+| Shared Transport Pooling | FR-4.4: Match multiple nearby requests for the same route to reduce cost | Data/ML eng. | 1.5 weeks | Geo-clustering algorithm; cost savings calculation |
+| Transport Cost Calculation | Display shared cost savings to farmers | Backend eng. | 0.5 weeks | E.g., "Save 30% by pooling with 2 other farmers" |
+
+**Deliverable:** Transport request flows end-to-end; `/api/transport-requests` API and assignment flows
+
+### Workstream 4: Trust & Ratings
+
+| Component | Requirements | Owner | Duration | Notes |
+|---|---|---|---|---|
+| Rating Model | FR-7.3: Farmers rate buyers/market sellers and vice versa | Backend eng. | 1 week | 1–5 stars; optional comment; aggregate average |
+| Rating API | Submit/view ratings by user | Backend eng. | 1 week | `/api/users/:id/ratings` endpoint |
+| Public Profile | FR-7.1: Display user profile with rating, transaction history summary | Frontend eng. (both app + web) | 1 week | Show on listing view (seller profile) and transaction confirmations |
+
+**Deliverable:** Ratings and public profiles visible in mobile app and admin dashboard
+
+### Phase 3 Exit Criteria
+- ✅ Forecasting module produces harvest timing and sell-now-vs-wait recommendations with confidence levels
+- ✅ Forecasting validated against historical test set with ≥60% accuracy
+- ✅ Mobile money provider integration signed; real payment flows work in sandbox
+- ✅ Payment reminders trigger correctly for overdue transactions
+- ✅ Transport request submission, search, and assignment flows complete and testable
+- ✅ Shared transport pooling algorithm tested with 10+ sample requests
+- ✅ Rating submission and profile display verified in app and dashboard
+- ✅ `/api/forecasts`, `/api/transactions/:id/pay`, `/api/transport-requests` endpoints operational
+
+---
+
+## Phase 4: Internal Testing & Hardening
+
+**Duration:** 3 weeks (Weeks 19–21)  
+**Dependency:** Phase 3 complete
+
+### Objectives
+- Achieve full functional coverage against SRS
+- Harden security, performance, and reliability
+- Validate usability for low-literacy users
+- Fix defects and stabilize for pilot launch
+
+### Workstream 1: Functional QA
+
+| Test Area | Requirements Covered | Owner | Duration | Notes |
+|---|---|---|---|---|
+| User Registration | FR-7.1: All user roles, phone validation, KYC stub | QA lead | 1 week | Test via API, USSD, and mobile app; verify data model |
+| Produce Listing | FR-1.1, FR-1.2, FR-1.6: Create, search, filter, view details | QA lead | 1 week | Test all filter combinations; pagination; edge cases (huge quantity, future dates) |
+| Pre-Commitments | FR-1.3, FR-1.5: Submit, accept, reject, counter, state transitions | QA lead | 1 week | Verify state machine; notifications triggered; no orphaned data |
+| Prices | FR-2.1, FR-2.2, FR-2.4: Current prices, history, data freshness | QA lead | 0.5 weeks | Verify demo data; seeding logic; stale data handling |
+| Transactions | FR-5.1–FR-5.5: Payment tracking, reminders, reliability score, mobile money | QA lead | 1 week | Test payment flows; reminder accuracy; score calculations |
+| Transport | FR-4.1–FR-4.4: Request submission, assignment, pooling, cost calculation | QA lead | 0.5 weeks | Test pooling algorithm; assignment state transitions |
+| Ratings | FR-7.3: Submit, view, aggregate, display on profile | QA lead | 0.5 weeks | Test rating validation; average calculation; duplicate prevention |
+| Forecasting | FR-3.1–FR-3.5: Recommendations, confidence levels, data freshness | QA lead | 0.5 weeks | Test edge cases (no historical data, future dates) |
+| Admin Dashboard | FR-9.1: Summary view, data accuracy, no errors under load | QA lead | 0.5 weeks | Verify counts match source data |
+| USSD Menu | FR-8.2: All flows, session persistence, error handling | QA lead | 1 week | Test via gateway sandbox; simulate slow network, timeouts |
+| SMS Notifications | FR-1.4, FR-8.1: All notification triggers, message content, retry logic | QA lead | 0.5 weeks | Verify notifications logged correctly; no duplicates |
+
+**Deliverable:** Test plan document; defect log; pass/fail results for all FR items
+
+### Workstream 2: Security Review
+
+| Area | Owner | Duration | Notes |
+|---|---|---|---|
+| Data in Transit | Eng. lead | 0.5 weeks | Verify HTTPS enforced; USSD gateway uses encrypted channel |
+| Data at Rest | Eng. lead | 0.5 weeks | In-memory store is dev-only; document Postgres encryption for Phase 4 production |
+| Access Control | Eng. lead | 1 week | Verify farmers cannot view other farmers' transactions; buyers cannot modify listings; admins have elevated access only |
+| Mobile Money Credentials | Integration eng. | 1 week | Credentials stored securely; never logged; rotate on schedule |
+| Phone Number Handling | Backend eng. | 0.5 weeks | Verify phone numbers masked in logs; GDPR/local privacy compliance |
+| Input Validation | Backend eng. | 0.5 weeks | Verify all API inputs validated; no SQL injection, XSS, or similar attacks |
+| API Rate Limiting | Backend eng. | 0.5 weeks | Prevent brute-force attacks on registration and login endpoints |
+
+**Deliverable:** Security review report; any findings remediated; security checklist sign-off
+
+### Workstream 3: Performance & Load Testing
+
+| Metric | Target | Test Method | Owner | Duration |
+|---|---|---|---|---|
+| USSD Response Time | < 2 seconds (incl. network latency) | Simulate concurrent users via gateway sandbox | Perf. eng. | 1 week |
+| Mobile App Load Time | < 3 seconds for core screens on 3G | Load on real device; profile in dev tools | Mobile lead | 0.5 weeks |
+| API Endpoint Latency | < 200 ms (p95) for read, < 500 ms for write | Load test with Apache JMeter or similar | Backend lead | 1 week |
+| Concurrent Users | Handle 100+ concurrent API users without error | Sustained load test for 30 min | Backend lead | 0.5 weeks |
+| Database (In-Memory) | No data loss or performance degradation with 200+ records | Stress test with bulk inserts | Backend lead | 0.5 weeks |
+
+**Deliverable:** Load test results; performance optimization completed; latency targets met
+
+### Workstream 4: Usability Testing with Low-Literacy Users
+
+| Test | Participants | Owner | Duration | Notes |
+|---|---|---|---|---|
+| USSD Flow Walkthrough | 5–8 farmers (mix of literacy levels) | Field ops + UX | 1 week | Recruit via pilot partners; conduct in Central Region if possible |
+| Mobile App Walkthrough | 5–8 smartphone-using farmers | Field ops + UX | 1 week | Test registration, listing creation, pre-commitment submission |
+| Form Input & Validation | All participants | UX eng. | 0.5 weeks | Verify error messages are clear; input helpers work |
+| Language Appropriateness | Twi/Ga speakers if available | Product + field ops | 0.5 weeks | Verify terminology matches farmer vernacular; adjust translations |
+| Feedback & Iteration | Document issues and quick fixes | Product + UX | 0.5 weeks | Prioritize based on task completion rate and user feedback |
+
+**Deliverable:** Usability report; prioritized list of UX improvements; all critical issues resolved
+
+### Phase 4 Exit Criteria
+- ✅ All FR items tested; no open critical or high-severity defects
+- ✅ Security review complete; all medium/high findings remediated
+- ✅ Performance targets met (USSD < 2 sec, API p95 < 200 ms)
+- ✅ Usability testing complete; core flows completable by low-literacy users without facilitator help
+- ✅ All documentation updated (README.md, API docs, deployment guide)
+- ✅ Code frozen; no new features or architectural changes allowed before pilot
+
+---
+
+## Phase 5: Pilot Launch
+
+**Duration:** 2 weeks (Weeks 22–23)  
+**Dependency:** Phase 4 complete; Phase 1 baseline data and partner MOUs in place
+
+### Objectives
+- Onboard pilot users (farmers, buyers, sellers, transporters)
+- Deploy platform to staging environment in Central Region
+- Activate support infrastructure
+- Begin live data collection
+
+### Workstream 1: User Onboarding
+
+| User Class | Count | Method | Owner | Timeline |
+|---|---|---|---|---|
+| Smallholder Farmers | 30–50 | In-person registration sessions at cooperative meetings | Field ops | Week 22 |
+| Market Sellers | 15–20 | In-person at market association gathering or individual visits | Field ops | Week 22 |
+| Institutional Buyers | 3–5 | Phone/in-person meetings; demo of platform | Field ops + Product | Week 22 |
+| Transport Providers | 3–5 | In-person; vehicle details, rate card setup | Field ops | Week 22 |
+
+**Onboarding Checklist per User:**
+- Phone number verified (SMS PIN sent/received)
+- User role and profile information captured
+- Device type and language preference recorded
+- First transaction or listing created (to validate flow)
+- Support contact info shared (helpline, SMS, WhatsApp)
+
+**Deliverable:** Onboarded user registry; device/language profile summary; first-use completion rate
+
+### Workstream 2: Deployment & Environment Setup
+
+| Task | Owner | Duration | Notes |
+|---|---|---|---|
+| Deploy to staging server (cloud or local) | Ops/Infra | 1 week | Regional latency acceptable for West Africa (< 500 ms round-trip) |
+| Configure SMS/USSD gateway to point to staging | Integration eng. + MNO partner | 0.5 weeks | Test webhook; confirm messages route correctly |
+| Configure mobile money sandbox (or live if pilot scale allows) | Integration eng. + payment provider | 0.5 weeks | Test end-to-end payment flow with small amounts |
+| Set up admin operations dashboard (live monitoring, logs) | Ops | 0.5 weeks | Real-time view of transactions, errors, user activity |
+| Set up data backup and recovery procedure | Ops | 0.5 weeks | Daily snapshots; restore procedure tested |
+
+**Deliverable:** Staging environment live; all integrations tested; ops team trained
+
+### Workstream 3: Support Infrastructure
+
+| Component | Purpose | Owner | Duration |
+|---|---|---|---|
+| SMS Helpline | Farmers/sellers can SMS +233... for support | Field ops + Telecom provider | 1 week | Set up dedicated number; route to support team |
+| WhatsApp Support Group | Real-time answers to common questions | Product manager | 1 week | Create pilot-user group; daily office hours |
+| Support Ticket Tracker | Log all issues for weekly review | Field ops | 1 week | Spreadsheet or lightweight ticketing system (Jira, etc.) |
+| Weekly Sync Call | Check in with pilot partners on issues/feedback | Field ops | 0.5 weeks | Recurring Tuesday/Thursday call; document action items |
+| Escalation Process | How issues route to engineering | Field ops lead | 0.5 weeks | Severity classification; SLA (P0 = 24 hr, P1 = 48 hr, etc.) |
+
+**Deliverable:** Support team trained; helpline and escalation procedure documented
+
+### Workstream 4: Data Collection Setup
+
+| Data Point | Collection Method | Owner | Frequency |
+|---|---|---|---|
+| Daily Listings Created | Query `/api/summary` | Data eng. | Daily, automated |
+| Pre-Commitment Rate | Count accepted pre-commitments | Data eng. | Daily |
+| Transaction Completion Rate | Count completed, paid transactions | Data eng. | Daily |
+| Payment Delay Incidents | Count overdue transactions | Data eng. | Daily |
+| USSD Usage (sessions, users, menu choice distribution) | Log from USSD gateway | Data eng. | Daily |
+| Mobile App Installs & Crashes | App analytics (Firebase, etc.) | Mobile lead | Daily |
+| User Support Tickets | Manual tally from support tracker | Field ops | Weekly |
+| Farmer-Reported Spoilage | In-person or SMS survey | Field ops | Weekly |
+
+**Deliverable:** Data collection dashboard (automated); baseline vs. live comparison ready
+
+### Phase 5 Exit Criteria
+- ✅ All planned pilot users onboarded and first transaction/listing created
+- ✅ Staging environment stable for 7 days with zero unplanned downtime
+- ✅ All integrations (SMS/USSD gateway, mobile money, weather/price data) tested and operational
+- ✅ Support team handling tickets with < 24 hr response time for P0
+- ✅ Data collection pipeline live and validated against manual spot-checks
+- ✅ Pilot users report no critical show-stoppers; UX issues logged but not blocking
+
+---
+
+## Phase 6: Pilot Operation & Monitoring
+
+**Duration:** 12 weeks (Weeks 24–35)  
+**Dependency:** Phase 5 complete; platform live with pilot users
+
+### Objectives
+- Run the platform live through at least one full tomato harvest cycle (typically 3–4 months in Central Region)
+- Collect data on all success metrics
+- Iterate on UX/bugs based on real usage
+- Build case for scale-up or pivot
+
+### Monitoring & Operations (Ongoing)
+
+| Activity | Owner | Frequency | Key Metrics |
+|---|---|---|---|
+| System Health Dashboard | Ops team | Real-time | API uptime, USSD error rate, database status, payment gateway connectivity |
+| Weekly Data Summary | Data eng. | Weekly | Listings created, pre-commitments, transactions, users onboarded (cumulative) |
+| User Support Review | Field ops lead | Weekly | Open tickets, resolution time, top issues, escalations |
+| Biweekly Stakeholder Call | Product + Field ops | Biweekly | Progress vs. plan, risks, quick wins, feedback from users and partners |
+| Live Issue Triage | Eng. lead | Daily | P0/P1 issues; decide: fix immediately, schedule for next sprint, or document as known limitation |
+
+### Workstream 1: Platform Maintenance & Bug Fixes
+
+| Category | Owner | SLA | Notes |
+|---|---|---|---|
+| P0 (Platform Down, Data Loss) | Eng. on-call | 1 hour response, 4 hour fix | E.g., database corruption, payment gateway integration broken |
+| P1 (Major Feature Broken, Payment Stuck) | Eng. | 4 hour response, 24 hour fix | E.g., farmer cannot list produce, buyer pre-commitment not persisted |
+| P2 (Minor UX Issue, Slow Response) | Eng. | 24 hour response, 1 week fix | E.g., form takes 5 sec to load, error message unclear |
+| P3 (Enhancement, Nice-to-Have) | Eng. | Backlog | E.g., sort listings by distance, export transaction history |
+
+**Deliverable:** Bug fixes deployed to staging weekly; critical fixes to production within SLA
+
+### Workstream 2: Usability Iteration
+
+| Iteration | Focus | Method | Owner | Timing | Outcomes |
+|---|---|---|---|---|---|
+| Week 1–2 Feedback Loop | Core flows (registration, listing, pre-commitment) | Phone calls + support tickets | Field ops | End of Week 2 | Prioritized UX issues; quick wins (e.g., font size, button placement) |
+| Week 3–4 Language/Localization | Terminology, Twi/Ga/English mix | Spot-check with 3–5 farmers | Field ops + UX | End of Week 4 | Revised menu text, error messages |
+| Week 5–8 Advanced Flows | Transport, forecasts, ratings, payments | Usage data + interviews | Data + Field ops | Biweekly | Optimize flow design; reduce drop-off points |
+| Week 9–12 End-of-Cycle Feedback | Overall experience, likelihood to recommend | Survey + focus groups | Field ops + Product | Week 12 | Incorporate learnings into Phase 3 decisions (expand crops, regions, etc.) |
+
+**Deliverable:** Prioritized backlog of UX improvements; Phase 3 recommendations
+
+### Workstream 3: Data Monitoring Against Success Metrics
+
+| Metric | Baseline (Phase 1) | Target for Pilot | Data Source | Frequency |
+|---|---|---|---|---|
+| Post-Harvest Loss (farmer reported) | ~30–40% | < 25% | Survey (mid-cycle, end-of-cycle) | 2x during pilot |
+| Farm-Gate Price | GHS ~400–600 per unit | +10% vs. baseline | Transaction data + survey | Weekly (summary) |
+| Payment Delay Incidents | 25–30% of sales | < 10% | Transaction data (overdue count) | Daily (automated) |
+| Completed Transactions | Baseline: 0 (pre-pilot) | ≥ 50 | API transactions table | Daily |
+| Repeat Usage Rate | N/A (new platform) | ≥ 60% of users repeat within 4 weeks | User session data | Weekly |
+| Forecast Accuracy | N/A | ≥ 60% recommendations lead to profitable sales | Survey + transaction review | End-of-cycle |
+| Transport Cost Savings (farmers using shared transport) | Baseline from interviews (~GHS 50–80 per farmer) | Average 20% savings | Transport request data | Weekly (summary) |
+
+**Deliverable:** Weekly dashboard showing progress toward each metric; mid-cycle and end-cycle reports
+
+### Phase 6 Exit Criteria
+- ✅ Platform operational for 12 weeks with > 95% uptime (excluding scheduled maintenance)
+- ✅ At least one full harvest cycle data collected (farmers planted → harvested → sold → payment received or outstanding)
+- ✅ ≥ 50 completed end-to-end transactions (from listing to payment) across all user types
+- ✅ Post-harvest loss metric collected from at least 20 farmers; trend analysis completed
+- ✅ Payment delay incidents reduced to < 10% (from baseline ~25–30%)
+- ✅ ≥ 60% of users repeat use within 4 weeks
+- ✅ Forecast recommendations validated (sample of 20+ recommendations reviewed for outcome)
+- ✅ Support team handled all P0/P1 issues within SLA
+- ✅ Usability improvements deployed and validated (e.g., form completion time reduced, user satisfaction score improved)
+- ✅ All pilot data consolidated into evaluation report template (ready for Phase 7 analysis)
+
+---
+
+## Phase 7: Evaluation & Go/No-Go Decision
+
+**Duration:** 3 weeks (Weeks 36–38)  
+**Dependency:** Phase 6 complete; all metrics collected
+
+### Objectives
+- Analyze pilot results against success criteria
+- Identify key learnings and required changes for scale-up
+- Make go/no-go decision on nationwide expansion
+- Document roadmap for next phase
+
+### Workstream 1: Impact Analysis
+
+| Question | Data Source | Owner | Duration |
+|---|---|---|---|
+| Did post-harvest loss decrease? | Farmer survey (2x during pilot) + transaction data | M&E lead | 1 week |
+| Did farm-gate price increase? | Transaction prices + farmer survey | Data analyst | 1 week |
+| Did payment delays decrease? | Transaction overdue count + farmer/buyer survey | Data analyst | 1 week |
+| Did farmers earn more? | Survey: income this season vs. last season, by pilot participant | M&E lead | 1 week |
+| Did platform adoption exceed 60% repeat rate? | User login frequency, transaction count per user | Data analyst | 0.5 weeks |
+| Did forecasting accuracy reach 60%+? | Recommendation outcome review (did farmers who followed recommendations do better?) | ML engineer | 1 week |
+
+**Deliverable:** Impact summary document with quantified results vs. success criteria
+
+### Workstream 2: Qualitative Feedback & Lessons Learned
+
+| Method | Participants | Owner | Notes |
+|---|---|---|---|
+| Farmer Focus Group | 8–10 pilot farmers (mix of engagement levels) | Field ops | "What worked? What was confusing? Would you recommend to a friend?" |
+| Buyer/Seller Interviews | 3–5 institutional buyers, 5–8 market sellers | Product | Impact on their business; pricing patterns; transport savings |
+| Transporter Feedback | 2–3 transport providers | Field ops | Booking frequency; profitability; usability issues |
+| Support Team Debrief | Field ops team + support staff | Field ops lead | Top issues encountered; most frequent user questions; culturally specific blockers |
+| Partner Reflection | Farmer group, market association, transport provider leaders | Product + Field ops | Lessons for onboarding; technical requirements; business model adjustments |
+
+**Deliverable:** Qualitative findings document; prioritized list of improvements for scale-up
+
+### Workstream 3: Technical Readiness Review
+
+| Area | Readiness Check | Owner | Notes |
+|---|---|---|---|
+| Data Model Scalability | Can Postgres handle 10,000 users, 100,000 transactions? | Backend lead | If yes, migration plan ready for Phase 4; if no, redesign needed |
+| USSD Gateway Stability | Did chosen provider meet performance/reliability targets? | Integration eng. | Consider failover or multi-provider strategy if issues |
+| Mobile Money Integration | Is payment flow reliable and settlement on schedule? | Finance + Integration eng. | Any fees or chargeback issues to address before scale? |
+| Forecasting Model Generalizability | Does model trained on Central Region tomato work for other crops/regions? | ML engineer | Retraining data requirements; model performance on new data |
+| Mobile App Performance | App performance acceptable at scale (100+ concurrent users)? | Mobile lead | Any architectural changes needed for 10,000 users? |
+
+**Deliverable:** Technical readiness checklist; list of Phase 4 hardening tasks if scaling
+
+### Workstream 4: Business Model Validation
+
+| Question | Method | Owner | Duration |
+|---|---|---|---|
+| Are farmers willing to pay a commission or subscription? | Survey with 20+ pilot farmers | Product | Optional at pilot; critical for sustainability at scale |
+| Is mobile money provider fee sustainable? | Financial model based on actual transaction volume | Finance | E.g., if 2% provider fee and 5% platform take, is margin positive? |
+| Are market associations interested in continuing partnership? | Stakeholder call | Product | What's needed to move from pilot to revenue-sharing partnership? |
+| What's the cost per pilot user (marketing, support, data)? | Cost accounting | Finance | How does pilot cost-per-user compare to expected scale cost? |
+
+**Deliverable:** Business model summary; sustainability assessment
+
+### Workstream 5: Go/No-Go Decision Framework
+
+| Scenario | Criteria | Recommendation |
+|---|---|---|
+| **GO — Scale Up** | Post-harvest loss ↓ by ≥ 15%; farm-gate price ↑ by ≥ 10%; payment delays ↓ to < 10%; repeat usage ≥ 60%; ≥ 80% farmers would recommend; technical readiness OK | Proceed to Phase 3 with additional crops/regions; budget for nationwide expansion |
+| **GO — Iterate** | Metrics close (within 5%) but UX issues significant; forecasting accuracy < 60%; specific regions underperform; business model requires adjustment | Proceed to Phase 3 with fixes to identified areas; longer pilot for second region before expansion |
+| **NO-GO — Pivot** | Post-harvest loss unchanged or worse; farm-gate price flat/down; adoption < 40% repeat rate; forecast unreliable; key partner(s) withdraw support | Pause expansion; address root causes (e.g., market conditions, political environment, platform fit); consider pivot to different crop or region |
+
+### Phase 7 Deliverables
+
+1. **Evaluation Report** (10–15 pages)
+   - Executive summary of results
+   - Quantified impact vs. success criteria
+   - Qualitative feedback highlights
+   - Technical readiness assessment
+   - Business model validation
+   - Lessons learned (top 5 wins, top 5 challenges)
+
+2. **Roadmap for Next Phase**
+   - Recommended scope (crops: tomato only vs. tomato + maize + pepper; regions: Central only vs. Central + Ashanti)
+   - Required technical changes before scale (database migration, multi-region deployment, etc.)
+   - Organizational changes (hiring, partner additions)
+   - Timeline for Phase 3 (adjusted based on findings)
+
+3. **Go/No-Go Recommendation** (1-page decision memo)
+   - Clear recommendation (GO, GO-with-conditions, NO-GO)
+   - Top 3 decision drivers
+   - Stakeholder approval (product lead, sponsor, field ops lead)
+
+### Phase 7 Exit Criteria
+- ✅ All pilot data cleaned and analyzed
+- ✅ Impact metrics quantified against success criteria
+- ✅ Qualitative feedback consolidated and prioritized
+- ✅ Technical and business readiness assessments complete
+- ✅ Evaluation report approved by stakeholders
+- ✅ Go/no-go decision memo signed off and communicated
+- ✅ Roadmap for next phase (or pivot) documented
+- ✅ Pilot data archived for future reference
+
+---
+
+## Cross-Phase Dependencies & Critical Path
