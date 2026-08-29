@@ -13,6 +13,11 @@ export default defineConfig({
         target: process.env.VITE_API_TARGET || 'http://localhost:3000',
         changeOrigin: true,
       },
+      // Serve uploaded produce/farm/verification images from the backend in dev.
+      '/uploads': {
+        target: process.env.VITE_API_TARGET || 'http://localhost:3000',
+        changeOrigin: true,
+      },
     },
   },
 })

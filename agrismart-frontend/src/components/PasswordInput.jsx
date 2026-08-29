@@ -1,7 +1,7 @@
 import { useState } from 'react'
 
 const inputCls =
-  'w-full rounded-lg border border-line px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-leaf pr-10 text-ink'
+  'w-full rounded-[10px] border border-line bg-[#fbfcfa] px-3 py-2.5 font-sans text-sm text-ink outline-none focus:border-leaf focus:shadow-[0_0_0_3px_rgba(29,101,79,.12)] pr-10'
 
 function EyeIcon({ off }) {
   return (
@@ -37,7 +37,7 @@ export default function PasswordInput({ value, onChange, placeholder, autoComple
   return (
     <div>
       {label && (
-        <label className="block text-sm font-medium text-muted mb-1">{label}</label>
+        <label className="mb-1 block font-sans text-[11px] uppercase tracking-[.06em] text-muted">{label}</label>
       )}
       <div className="relative">
         <input

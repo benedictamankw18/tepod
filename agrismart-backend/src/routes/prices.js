@@ -72,7 +72,7 @@ router.get("/current", async (req, res) => {
   const { cropType, market } = req.query;
   if (!cropType) return res.status(400).json({ error: "cropType is required" });
   const result = await pricesRepo.currentPrice({ cropType, market });
-  if (!result) return res.status(404).json({ error: `no price data for ${cropType}` });
+  if (!result) return res.json({ cropType, market: market || "all markets", date: null, averagePrice: null });
   res.json(result);
 });
 

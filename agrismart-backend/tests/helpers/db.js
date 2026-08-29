@@ -28,8 +28,9 @@ const MIGRATIONS = fs.existsSync(MIGRATIONS_DIR)
   : [];
 
 const TABLES = [
-  "notifications", "otp_codes", "oauth_accounts", "ussd_sessions",
+  "ago_sms_logs", "notifications", "otp_codes", "oauth_accounts", "ussd_sessions",
   "transport_requests", "pre_commitments", "transactions", "listings", "prices", "users",
+  "farms", "buyer_verifications", "banners", "cart_items", "user_croptype",
 ];
 
 async function applySchema() {

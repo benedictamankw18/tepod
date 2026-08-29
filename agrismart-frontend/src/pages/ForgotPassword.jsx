@@ -4,9 +4,12 @@ import AuthLayout from '../components/AuthLayout'
 import OtpInput from '../components/OtpInput'
 import PasswordInput from '../components/PasswordInput'
 import { issueOtp, resetPassword } from '../lib/api'
+import { isValidGhanaPhone } from '../lib/phone'
 
 const inputCls =
-  'w-full rounded-lg border border-line px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-leaf text-ink'
+  'w-full rounded-[10px] border border-line bg-[#fbfcfa] px-3 py-2.5 font-sans text-sm text-ink outline-none focus:border-leaf focus:shadow-[0_0_0_3px_rgba(29,101,79,.12)]'
+
+const labelCls = 'mb-1 block font-sans text-[11px] uppercase tracking-[.06em] text-muted'
 
 export default function ForgotPassword() {
   const navigate = useNavigate()
@@ -17,14 +20,29 @@ export default function ForgotPassword() {
   const [info, setInfo] = useState('')
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
+  const [phoneError, setPhoneError] = useState('')
+  const phoneValid = phone.trim() === '' || isValidGhanaPhone(phone)
+  const [email, setEmail] = useState('')
+  const [emailError, setEmailError] = useState('')
+  const emailValid = email.trim() === '' || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const passwordMismatch = confirmPassword.length > 0 && confirmPassword !== password
 
   const sendCode = async (e) => {
     e.preventDefault()
     setError('')
     setInfo('')
+    if (!phoneValid) {
+      setError('Enter a valid Ghanaian mobile number.')
+      return
+    }
+    if (!emailValid) {
+      setError('Enter a valid email address.')
+      return
+    }
     setBusy(true)
     try {
-      const res = await issueOtp(phone, 'reset')
+      const res = await issueOtp(phone, 'reset', email.trim())
       setInfo(
         res.debugCode
           ? `Reset code issued. Dev code: ${res.debugCode}`
@@ -41,6 +59,10 @@ export default function ForgotPassword() {
   const doReset = async (e) => {
     if (e) e.preventDefault()
     setError('')
+    if (passwordMismatch) {
+      setError('Passwords do not match.')
+      return
+    }
     setBusy(true)
     try {
       await resetPassword({ phone, code, password })
@@ -52,7 +74,7 @@ export default function ForgotPassword() {
     }
   }
 
-  const canSubmit = code.length === 6 && password.length >= 6
+  const canSubmit = code.length === 6 && password.length >= 6 && !passwordMismatch
 
   return (
     <AuthLayout title="Reset your password" subtitle="We'll text a code to your phone">
@@ -65,19 +87,40 @@ export default function ForgotPassword() {
       {step === 'phone' ? (
         <form onSubmit={sendCode} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-muted mb-1">Phone number</label>
+            <label className={labelCls}>Phone number</label>
             <input
               className={inputCls}
               value={phone}
-              onChange={(e) => setPhone(e.target.value)}
+              onChange={(e) => {
+                setPhone(e.target.value)
+                setPhoneError('')
+              }}
+              onBlur={() => setPhoneError(phone.trim() && !isValidGhanaPhone(phone) ? 'invalid' : '')}
               placeholder="0241234567"
               autoComplete="tel"
             />
+            {phoneError && <p className="mt-1 text-xs text-red-700">Enter a valid Ghanaian mobile number (e.g. 0241234567).</p>}
+          </div>
+          <div>
+            <label className={labelCls}>Email (optional)</label>
+            <input
+              className={inputCls}
+              type="email"
+              value={email}
+              onChange={(e) => {
+                setEmail(e.target.value)
+                setEmailError('')
+              }}
+              onBlur={() => setEmailError(email.trim() && !emailValid ? 'invalid' : '')}
+              placeholder="you@example.com"
+              autoComplete="email"
+            />
+            {emailError && <p className="mt-1 text-xs text-red-700">Enter a valid email address.</p>}
           </div>
           <button
             type="submit"
-            disabled={busy || !phone}
-            className="w-full rounded-lg bg-leaf py-2.5 text-sm font-semibold text-white hover:bg-leaf-dark disabled:opacity-50"
+            disabled={busy || !phone || !phoneValid || !emailValid}
+            className="w-full rounded-[10px] bg-leaf py-2.5 font-sans text-sm font-bold text-white transition hover:bg-leaf-dark disabled:opacity-50"
           >
             {busy ? 'Sending…' : 'Send reset code'}
           </button>
@@ -96,10 +139,22 @@ export default function ForgotPassword() {
             placeholder="••••••••"
             autoComplete="new-password"
           />
+          <div>
+            <PasswordInput
+              label="Confirm new password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              placeholder="••••••••"
+              autoComplete="new-password"
+            />
+            {passwordMismatch && (
+              <p className="mt-1 text-xs text-red-700">Passwords do not match.</p>
+            )}
+          </div>
           <button
             type="submit"
             disabled={busy || !canSubmit}
-            className="w-full rounded-lg bg-leaf py-2.5 text-sm font-semibold text-white hover:bg-leaf-dark disabled:opacity-50"
+            className="w-full rounded-[10px] bg-leaf py-2.5 font-sans text-sm font-bold text-white transition hover:bg-leaf-dark disabled:opacity-50"
           >
             {busy ? 'Resetting…' : 'Reset password'}
           </button>

@@ -20,6 +20,10 @@ export function getUser() {
   }
 }
 
+export function updateUser(user) {
+  localStorage.setItem(USER_KEY, JSON.stringify(user))
+}
+
 export function logout() {
   localStorage.removeItem(TOKEN_KEY)
   localStorage.removeItem(USER_KEY)

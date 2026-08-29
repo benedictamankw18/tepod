@@ -4,8 +4,10 @@ import AuthLayout from '../components/AuthLayout'
 import GoogleButton from '../components/GoogleButton'
 import PasswordInput from '../components/PasswordInput'
 import OtpInput from '../components/OtpInput'
+import SearchableSelect from '../components/SearchableSelect'
 import { login, issueOtp, verifyOtp } from '../lib/api'
 import { setSession } from '../lib/auth'
+import { isValidGhanaPhone } from '../lib/phone'
 
 const METHODS = [
   { key: 'password', label: 'Password' },
@@ -14,7 +16,9 @@ const METHODS = [
 ]
 
 const inputCls =
-  'w-full rounded-lg border border-line px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-leaf text-ink'
+  'w-full rounded-[10px] border border-line bg-[#fbfcfa] px-3 py-2.5 font-sans text-sm text-ink outline-none focus:border-leaf focus:shadow-[0_0_0_3px_rgba(29,101,79,.12)]'
+
+const labelCls = 'mb-1 block font-sans text-[11px] uppercase tracking-[.06em] text-muted'
 
 export default function Login() {
   const navigate = useNavigate()
@@ -31,6 +35,11 @@ export default function Login() {
   const [otpStep, setOtpStep] = useState('issue') // issue | code
   const [otpCode, setOtpCode] = useState('')
   const [otpInfo, setOtpInfo] = useState('')
+  const [otpPhoneError, setOtpPhoneError] = useState('')
+  const [otpEmail, setOtpEmail] = useState('')
+  const [otpEmailError, setOtpEmailError] = useState('')
+  const otpPhoneValid = otpPhone.trim() === '' || isValidGhanaPhone(otpPhone)
+  const otpEmailValid = otpEmail.trim() === '' || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(otpEmail)
 
   // google (role/buyerType are used only when a brand-new Google account is created)
   const [gRole, setGRole] = useState('farmer')
@@ -60,9 +69,17 @@ export default function Login() {
     e.preventDefault()
     setError('')
     setOtpInfo('')
+    if (!otpPhoneValid) {
+      setError('Enter a valid Ghanaian mobile number.')
+      return
+    }
+    if (!otpEmailValid) {
+      setError('Enter a valid email address.')
+      return
+    }
     setBusy(true)
     try {
-      const res = await issueOtp(otpPhone)
+      const res = await issueOtp(otpPhone, 'login', otpEmail.trim())
       setOtpInfo(
         res.debugCode
           ? `Code issued. Dev code: ${res.debugCode}`
@@ -120,7 +137,7 @@ export default function Login() {
       {method === 'password' && (
         <form onSubmit={submitPassword} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-muted mb-1">Phone, email, or username</label>
+            <label className={labelCls}>Phone, email, or username</label>
             <input
               className={inputCls}
               value={identifier}
@@ -146,7 +163,7 @@ export default function Login() {
           <button
             type="submit"
             disabled={busy || !identifier || !password}
-            className="w-full rounded-lg bg-leaf py-2.5 text-sm font-semibold text-white hover:bg-leaf-dark disabled:opacity-50"
+            className="w-full rounded-[10px] bg-leaf py-2.5 font-sans text-sm font-bold text-white transition hover:bg-leaf-dark disabled:opacity-50"
           >
             {busy ? 'Signing in…' : 'Sign in'}
           </button>
@@ -157,19 +174,40 @@ export default function Login() {
         otpStep === 'issue' ? (
           <form onSubmit={submitOtpFirst} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-muted mb-1">Phone number</label>
+              <label className={labelCls}>Phone number</label>
               <input
                 className={inputCls}
                 value={otpPhone}
-                onChange={(e) => setOtpPhone(e.target.value)}
+                onChange={(e) => {
+                  setOtpPhone(e.target.value)
+                  setOtpPhoneError('')
+                }}
+                onBlur={() => setOtpPhoneError(otpPhone.trim() && !isValidGhanaPhone(otpPhone) ? 'invalid' : '')}
                 placeholder="0241234567"
                 autoComplete="tel"
               />
+              {otpPhoneError && <p className="mt-1 text-xs text-red-700">Enter a valid Ghanaian mobile number (e.g. 0241234567).</p>}
+            </div>
+            <div>
+              <label className={labelCls}>Email (optional)</label>
+              <input
+                className={inputCls}
+                type="email"
+                value={otpEmail}
+                onChange={(e) => {
+                  setOtpEmail(e.target.value)
+                  setOtpEmailError('')
+                }}
+                onBlur={() => setOtpEmailError(otpEmail.trim() && !otpEmailValid ? 'invalid' : '')}
+                placeholder="you@example.com"
+                autoComplete="email"
+              />
+              {otpEmailError && <p className="mt-1 text-xs text-red-700">Enter a valid email address.</p>}
             </div>
             <button
               type="submit"
-              disabled={busy || !otpPhone}
-              className="w-full rounded-lg bg-leaf py-2.5 text-sm font-semibold text-white hover:bg-leaf-dark disabled:opacity-50"
+              disabled={busy || !otpPhone || !otpPhoneValid || !otpEmailValid}
+              className="w-full rounded-[10px] bg-leaf py-2.5 font-sans text-sm font-bold text-white transition hover:bg-leaf-dark disabled:opacity-50"
             >
               {busy ? 'Sending…' : 'Send code'}
             </button>
@@ -191,7 +229,7 @@ export default function Login() {
             <button
               type="submit"
               disabled={busy || !otpCode}
-              className="w-full rounded-lg bg-leaf py-2.5 text-sm font-semibold text-white hover:bg-leaf-dark disabled:opacity-50"
+              className="w-full rounded-[10px] bg-leaf py-2.5 font-sans text-sm font-bold text-white transition hover:bg-leaf-dark disabled:opacity-50"
             >
               {busy ? 'Verifying…' : 'Verify & sign in'}
             </button>
@@ -209,7 +247,7 @@ export default function Login() {
       {method === 'google' && (
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-muted mb-1">Sign in as a</label>
+            <label className={labelCls}>Sign in as a</label>
             <div className="flex rounded-lg bg-white border border-line p-1">
               {['farmer', 'buyer'].map((r) => (
                 <button
@@ -231,17 +269,18 @@ export default function Login() {
 
           {gIsBuyer && (
             <div>
-              <label className="block text-sm font-medium text-muted mb-1">Buyer type</label>
-              <select
-                className={inputCls}
+              <label className={labelCls}>Buyer type</label>
+              <SearchableSelect
                 value={gBuyerType}
-                onChange={(e) => setGBuyerType(e.target.value)}
-              >
-                <option value="">Select buyer type…</option>
-                <option value="wholesale">Wholesale</option>
-                <option value="retail">Retail</option>
-                <option value="processor">Processor</option>
-              </select>
+                onChange={setGBuyerType}
+                options={[
+                  { value: '', label: 'Select buyer type…' },
+                  { value: 'wholesale', label: 'Wholesale' },
+                  { value: 'retail', label: 'Retail' },
+                  { value: 'processor', label: 'Processor' },
+                ]}
+                placeholder="Select buyer type…"
+              />
             </div>
           )}
 

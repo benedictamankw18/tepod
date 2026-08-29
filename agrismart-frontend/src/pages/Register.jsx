@@ -5,10 +5,14 @@ import GoogleButton from '../components/GoogleButton'
 import PasswordInput from '../components/PasswordInput'
 import { register, checkAvailability } from '../lib/api'
 import { setSession } from '../lib/auth'
+import { isValidGhanaPhone } from '../lib/phone'
+import { useCrops } from '../lib/crops'
+import CropPicker from '../components/CropPicker'
+import SearchableSelect from '../components/SearchableSelect'
 
 const inputCls =
-  'w-full rounded-lg border border-line px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-leaf text-ink'
-const labelCls = 'block text-sm font-medium text-muted mb-1'
+  'w-full rounded-[10px] border border-line bg-[#fbfcfa] px-3 py-2.5 font-sans text-sm text-ink outline-none focus:border-leaf focus:shadow-[0_0_0_3px_rgba(29,101,79,.12)]'
+const labelCls = 'mb-1 block font-sans text-[11px] uppercase tracking-[.06em] text-muted'
 
 const initialChecks = { phone: 'idle', email: 'idle', username: 'idle' }
 
@@ -63,6 +67,7 @@ function buildSuggestions(name) {
 
 export default function Register() {
   const navigate = useNavigate()
+  const { crops } = useCrops()
   const [form, setForm] = useState({
     name: '',
     phone: '',
@@ -72,7 +77,7 @@ export default function Register() {
     confirmPassword: '',
     role: 'farmer',
     buyerType: '',
-    location: '',
+    primaryCrops: [],
   })
   const [checks, setChecks] = useState(initialChecks)
   const [error, setError] = useState('')
@@ -112,12 +117,14 @@ export default function Register() {
   }
 
   const set = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }))
+  const setValue = (key) => (value) => setForm((f) => ({ ...f, [key]: value }))
   const isBuyer = form.role === 'buyer'
 
   // Run a uniqueness check for phone/email/username when the field loses focus and
   // has a value. Matching is normalized server-side (E.164 for phone, case-insensitive
   // for email/username), mirroring the register endpoint. A stale response is ignored
-  // if the value changed while the request was in flight.
+  // if the value changed while the request was in flight. For phone we first enforce
+  // a valid Ghanaian mobile format; an invalid number never hits the availability check.
   const checkField = async (field, value) => {
     const v = value.trim()
     if (!v) {
@@ -125,6 +132,10 @@ export default function Register() {
       return
     }
     setChecks((c) => ({ ...c, [field]: 'checking' }))
+    if (field === 'phone' && !isValidGhanaPhone(value)) {
+      setChecks((c) => ({ ...c, phone: 'format' }))
+      return
+    }
     try {
       const res = await checkAvailability({ [field]: v })
       setChecks((c) => (form[field] === value ? { ...c, [field]: res.available ? 'available' : 'taken' } : c))
@@ -142,10 +153,14 @@ export default function Register() {
     if (checks[field] === 'checking') return { text: 'Checking…', cls: 'text-muted' }
     if (checks[field] === 'available') return { text: looksFree[field], cls: 'text-leaf' }
     if (checks[field] === 'taken') return { text: looksTaken[field], cls: 'text-red-700' }
+    if (checks[field] === 'format') {
+      return { text: 'Enter a valid Ghanaian mobile number (e.g. 0241234567).', cls: 'text-red-700' }
+    }
     return null
   }
 
   const anyTaken = ['phone', 'email', 'username'].some((f) => form[f].trim() && checks[f] === 'taken')
+  const phoneFormatOk = !form.phone.trim() || isValidGhanaPhone(form.phone)
   const passwordMismatch = form.confirmPassword.length > 0 && form.confirmPassword !== form.password
 
   const submit = async (e) => {
@@ -161,6 +176,10 @@ export default function Register() {
     }
     if (!form.phone && !form.email) {
       setError('At least one of phone or email is required.')
+      return
+    }
+    if (!phoneFormatOk) {
+      setError('Enter a valid Ghanaian mobile number.')
       return
     }
     if (isBuyer && !form.buyerType) {
@@ -181,10 +200,10 @@ export default function Register() {
         password: form.password,
         role: form.role,
         buyerType: isBuyer ? form.buyerType : undefined,
-        location: form.location || undefined,
+        primaryCrops: !isBuyer && form.primaryCrops.length ? form.primaryCrops : undefined,
       })
       setSession(result.user, result.token)
-      navigate('/')
+      navigate(isBuyer ? '/verify' : '/')
     } catch (err) {
       setError(err.message)
     } finally {
@@ -227,12 +246,29 @@ export default function Register() {
         {isBuyer && (
           <div>
             <label className={labelCls}>Buyer type</label>
-            <select className={inputCls} value={form.buyerType} onChange={set('buyerType')}>
-              <option value="">Select buyer type…</option>
-              <option value="wholesale">Wholesale</option>
-              <option value="retail">Retail</option>
-              <option value="processor">Processor</option>
-            </select>
+            <SearchableSelect
+              value={form.buyerType}
+              onChange={setValue('buyerType')}
+              options={[
+                { value: '', label: 'Select buyer type…' },
+                { value: 'wholesale', label: 'Wholesale' },
+                { value: 'retail', label: 'Retail' },
+                { value: 'processor', label: 'Processor' },
+              ]}
+              placeholder="Select buyer type…"
+            />
+          </div>
+        )}
+
+        {!isBuyer && (
+          <div>
+            <label className={labelCls}>Primary crops (optional)</label>
+            <CropPicker
+              crops={crops}
+              selected={form.primaryCrops}
+              onChange={(list) => setForm((f) => ({ ...f, primaryCrops: list }))}
+              placeholder="e.g. Tiger nuts"
+            />
           </div>
         )}
 
@@ -333,15 +369,10 @@ export default function Register() {
           )}
         </div>
 
-        <div>
-          <label className={labelCls}>Location (optional)</label>
-          <input className={inputCls} value={form.location} onChange={set('location')} placeholder="Kasoa, Central Region" />
-        </div>
-
         <button
           type="submit"
-          disabled={busy || anyTaken || passwordMismatch}
-          className="w-full rounded-lg bg-leaf py-2.5 text-sm font-semibold text-white hover:bg-leaf-dark disabled:opacity-50"
+          disabled={busy || anyTaken || passwordMismatch || !phoneFormatOk}
+          className="w-full rounded-[10px] bg-leaf py-2.5 font-sans text-sm font-bold text-white transition hover:bg-leaf-dark disabled:opacity-50"
         >
           {busy ? 'Creating…' : 'Create account'}
         </button>

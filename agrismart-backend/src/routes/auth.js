@@ -1,10 +1,13 @@
 const express = require("express");
 const auth = require("../services/auth");
 const usersRepo = require("../repositories/users");
+const verificationsRepo = require("../repositories/verifications");
+const { geocode } = require("../services/geocode");
 const { requireAuth } = require("../middleware/auth");
 
 const router = express.Router();
 const bad = (res, msg) => res.status(400).json({ error: msg });
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 /**
  * @openapi
@@ -23,6 +26,10 @@ const bad = (res, msg) => res.status(400).json({ error: msg });
  *               phone:
  *                 type: string
  *                 example: "0241234567"
+ *               email:
+ *                 type: string
+ *                 description: Optional recipient email; the code is also emailed when provided
+ *                 example: "user@example.com"
  *     responses:
  *       200:
  *         description: Code issued via SMS (or logged when no gateway is configured)
@@ -45,12 +52,16 @@ const bad = (res, msg) => res.status(400).json({ error: msg });
  */
 // POST /api/auth/otp/issue - request a one-time code for a phone number
 router.post("/otp/issue", async (req, res) => {
-  const { phone, purpose } = req.body;
+  const { phone, purpose, email } = req.body;
   if (!phone) return bad(res, "phone is required");
   if (purpose !== undefined && !["login", "reset"].includes(purpose)) {
     return bad(res, "purpose must be login or reset");
   }
-  const result = await auth.issueOtp({ phone, purpose: purpose || "login" });
+  if (email !== undefined && email !== "" && !EMAIL_RE.test(email)) {
+    return bad(res, "email is invalid");
+  }
+  const result = await auth.issueOtp({ phone, purpose: purpose || "login", email: email || undefined });
+  if (result.error) return res.status(404).json({ error: result.error });
   res.json(result);
 });
 
@@ -425,6 +436,283 @@ router.post("/google", async (req, res) => {
 // GET /api/auth/me - current user from bearer token
 router.get("/me", requireAuth, (req, res) => {
   res.json({ user: usersRepo.publicUser(req.user) });
+});
+
+/**
+ * @openapi
+ * /api/auth/verify:
+ *   post:
+ *     tags: [Auth]
+ *     summary: Complete the buyer verification / onboarding profile
+ *     description: >
+ *       Collects purchase preferences, location details, identification type + number,
+ *       and a live photo, then marks the buyer verified. Buyers must be verified before
+ *       they can submit commitments. Farmers are verified at signup.
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [idType, idNumber, photoUrl]
+ *             properties:
+ *               purchaseCrops:
+ *                 type: array
+ *                 items: { type: string }
+ *               region: { type: string }
+ *               district: { type: string }
+ *               gpsAddress: { type: string }
+ *               address: { type: string }
+ *               community: { type: string }
+ *               lat: { type: number }
+ *               lng: { type: number }
+ *               idType:
+ *                 type: string
+ *                 enum: [ghana_card, voter_card, passport]
+ *               idNumber: { type: string }
+ *               photoUrl: { type: string }
+ *     responses:
+ *       200:
+ *         description: Verified; returns the updated public profile
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 user:
+ *                   $ref: '#/components/schemas/User'
+ *                 verification:
+ *                   type: object
+ *       400:
+ *         $ref: '#/components/responses/BadRequest'
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ *       403:
+ *         description: Only buyers / market sellers verify
+ */
+// POST /api/auth/verify - buyer verification / onboarding
+router.post("/verify", requireAuth, async (req, res) => {
+  if (!["buyer", "market_seller"].includes(req.user.role)) {
+    return res.status(403).json({ error: "only buyers and market sellers verify their profile" });
+  }
+  const { purchaseCrops, region, district, gpsAddress, address, community, lat, lng, idType, idNumber, photoUrl } = req.body;
+
+  let resolvedLat = lat == null ? null : Number(lat);
+  let resolvedLng = lng == null ? null : Number(lng);
+  const geoSource = community || req.user.community || req.user.location;
+  if ((resolvedLat == null || resolvedLng == null) && geoSource) {
+    const g = await geocode(geoSource);
+    if (g) {
+      resolvedLat = resolvedLat ?? g.lat;
+      resolvedLng = resolvedLng ?? g.lng;
+    }
+  }
+
+  const updated = await usersRepo.updateProfile(req.user.id, {
+    purchaseCrops,
+    community: community || req.user.community,
+    lat: resolvedLat,
+    lng: resolvedLng,
+    region: region || req.user.region,
+    district: district || req.user.district,
+    gpsAddress: gpsAddress || req.user.gpsAddress,
+    address: address || req.user.address,
+  });
+  if (!updated) return res.status(404).json({ error: "user not found" });
+
+  const verification = await verificationsRepo.submitVerification({
+    userId: req.user.id, idType, idNumber, photoUrl,
+  });
+  if (verification.error) return bad(res, verification.error);
+
+  const verifiedUser = await usersRepo.updateUserVerified(req.user.id, true);
+  res.json({ user: usersRepo.publicUser(verifiedUser), verification });
+});
+
+// POST /api/auth/profile - update onboarding fields (primary/purchase crops, coords, address)
+router.post("/profile", requireAuth, async (req, res) => {
+  const { primaryCrops, purchaseCrops, region, district, gpsAddress, address, community, lat, lng } = req.body;
+
+  let resolvedLat = lat == null ? null : Number(lat);
+  let resolvedLng = lng == null ? null : Number(lng);
+  const geoSource = community || req.user.community || req.user.location;
+  if ((resolvedLat == null || resolvedLng == null) && geoSource) {
+    const g = await geocode(geoSource);
+    if (g) {
+      resolvedLat = resolvedLat ?? g.lat;
+      resolvedLng = resolvedLng ?? g.lng;
+    }
+  }
+
+  const updated = await usersRepo.updateProfile(req.user.id, {
+    primaryCrops,
+    purchaseCrops,
+    community: community || req.user.community,
+    lat: resolvedLat,
+    lng: resolvedLng,
+    region: region || req.user.region,
+    district: district || req.user.district,
+    gpsAddress: gpsAddress || req.user.gpsAddress,
+    address: address || req.user.address,
+  });
+  if (!updated) return res.status(404).json({ error: "user not found" });
+  res.json({ user: usersRepo.publicUser(updated) });
+});
+
+/**
+ * @openapi
+ * /api/auth/account:
+ *   post:
+ *     tags: [Auth]
+ *     summary: Update the signed-in user's editable account + profile fields
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               name: { type: string }
+ *               location: { type: string }
+ *               language: { type: string, enum: [en, tw] }
+ *               buyerType: { type: string, enum: [wholesale, retail, processor] }
+ *               mobileMoneyProvider: { type: string, enum: [mtn, vodafone_cash, airteltigo] }
+ *               farmSize: { type: number }
+ *               primaryCrops: { type: array, items: { type: string } }
+ *               purchaseCrops: { type: array, items: { type: string } }
+ *               community: { type: string }
+ *               region: { type: string }
+ *               district: { type: string }
+ *               gpsAddress: { type: string }
+ *               address: { type: string }
+ *               lat: { type: number }
+ *               lng: { type: number }
+ *     responses:
+ *       200:
+ *         description: Updated public profile
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 user:
+ *                   $ref: '#/components/schemas/User'
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ */
+// POST /api/auth/account - update editable account + profile fields
+router.post("/account", requireAuth, async (req, res) => {
+  const {
+    name, location, language, buyerType, mobileMoneyProvider, farmSize,
+    primaryCrops, purchaseCrops, community, region, district, gpsAddress, address, lat, lng,
+  } = req.body;
+
+  if (req.user.role !== "buyer" && buyerType !== undefined) {
+    return bad(res, "buyerType only applies to buyer accounts");
+  }
+
+  let resolvedLat = lat == null ? null : Number(lat);
+  let resolvedLng = lng == null ? null : Number(lng);
+  const geoSource = community || req.user.community || req.user.location;
+  if ((resolvedLat == null || resolvedLng == null) && geoSource) {
+    const g = await geocode(geoSource);
+    if (g) {
+      resolvedLat = resolvedLat ?? g.lat;
+      resolvedLng = resolvedLng ?? g.lng;
+    }
+  }
+
+  const updated = await usersRepo.updateAccount(req.user.id, {
+    name, location, language, buyerType, mobileMoneyProvider, farmSize,
+    primaryCrops, purchaseCrops,
+    community: community || req.user.community,
+    region: region || req.user.region,
+    district: district || req.user.district,
+    gpsAddress: gpsAddress || req.user.gpsAddress,
+    address: address || req.user.address,
+    lat: resolvedLat,
+    lng: resolvedLng,
+  });
+  if (!updated) return res.status(404).json({ error: "user not found" });
+  res.json({ user: usersRepo.publicUser(updated) });
+});
+
+/**
+ * @openapi
+ * /api/auth/photo:
+ *   post:
+ *     tags: [Auth]
+ *     summary: Set the signed-in user's profile photo URL
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [photoUrl]
+ *             properties:
+ *               photoUrl: { type: string, nullable: true }
+ *     responses:
+ *       200:
+ *         description: Updated public profile
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ */
+// POST /api/auth/photo - set profile photo URL
+router.post("/photo", requireAuth, async (req, res) => {
+  const { photoUrl } = req.body;
+  const updated = await usersRepo.updatePhotoUrl(req.user.id, photoUrl || null);
+  if (!updated) return res.status(404).json({ error: "user not found" });
+  res.json({ user: usersRepo.publicUser(updated) });
+});
+
+/**
+ * @openapi
+ * /api/auth/change-password:
+ *   post:
+ *     tags: [Auth]
+ *     summary: Change the signed-in user's password after verifying the current one
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [currentPassword, newPassword]
+ *             properties:
+ *               currentPassword: { type: string }
+ *               newPassword: { type: string, minLength: 6 }
+ *     responses:
+ *       200:
+ *         description: Password updated
+ *       400:
+ *         $ref: '#/components/responses/BadRequest'
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ */
+// POST /api/auth/change-password - verify current password, then set a new one
+router.post("/change-password", requireAuth, async (req, res) => {
+  const { currentPassword, newPassword } = req.body;
+  if (!currentPassword) return bad(res, "current password is required");
+  if (!newPassword || String(newPassword).length < 6) {
+    return bad(res, "new password must be at least 6 characters");
+  }
+  if (!req.user.passwordHash) {
+    return bad(res, "this account has no password set");
+  }
+  const ok = await auth.comparePassword(currentPassword, req.user.passwordHash);
+  if (!ok) return bad(res, "current password is incorrect");
+  const passwordHash = await auth.hashPassword(newPassword);
+  await usersRepo.setPassword(req.user.id, passwordHash);
+  res.json({ ok: true });
 });
 
 module.exports = router;

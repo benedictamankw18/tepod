@@ -55,8 +55,40 @@ async function preCommitmentsForBuyer(buyerId) {
   return r.rows.map(ROW_TO_PC);
 }
 
+// Pre-commitments a farmer received on their listings, newest first, enriched with the
+// requesting buyer's name and the listing's produce image (for the farmer dashboard).
+async function preCommitmentsForFarmer(farmerId) {
+  const r = await query(
+    `SELECT pc.*,
+            b.name AS buyer_name, b.buyer_type AS buyer_type,
+            l.crop_type AS listing_crop, l.quantity AS listing_qty, l.unit AS listing_unit,
+            l.image_url AS listing_image, l.image_urls AS listing_images, l.location AS listing_location
+     FROM pre_commitments pc
+     JOIN listings l ON l.id = pc.listing_id
+     JOIN users b ON b.id = pc.buyer_id
+     WHERE l.farmer_id = $1
+     ORDER BY pc.created_at DESC`,
+    [farmerId]
+  );
+  return r.rows.map((r) => ({
+    ...ROW_TO_PC(r),
+    buyer: { id: r.buyer_id, name: r.buyer_name, buyerType: r.buyer_type },
+    listing: {
+      id: r.listing_id,
+      cropType: r.listing_crop,
+      quantity: Number(r.listing_qty),
+      unit: r.listing_unit,
+      imageUrl: r.listing_image,
+      imageUrls: Array.isArray(r.listing_images)
+        ? r.listing_images
+        : (r.listing_image ? [r.listing_image] : []),
+      location: r.listing_location,
+    },
+  }));
+}
+
 module.exports = {
   PC_STATUSES,
   createPreCommitment, getPreCommitment, respondToPreCommitment,
-  preCommitmentsForListing, preCommitmentsForBuyer,
+  preCommitmentsForListing, preCommitmentsForBuyer, preCommitmentsForFarmer,
 };

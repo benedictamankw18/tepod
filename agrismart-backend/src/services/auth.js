@@ -11,6 +11,12 @@ const messages = require("./messages");
 
 const OTP_KEY = "agrismart.otp.";
 
+// Buyers (incl. market sellers) must complete the buyer-profile/verification step
+// before they can make commitments; farmers are considered verified at signup.
+function buyersMustVerify(role) {
+  return role === "buyer" || role === "market_seller";
+}
+
 function hashPassword(plain) {
   return bcrypt.hash(plain, 10);
 }
@@ -45,20 +51,43 @@ function hashOtp(code) {
   return crypto.createHash("sha256").update(OTP_KEY + code).digest("hex");
 }
 
-async function issueOtp({ phone, purpose = "login" }) {
+async function issueOtp({ phone, purpose = "login", email }) {
+  const normalizedPhone = usersRepo.normalizeE164(phone);
+  // For password reset we only issue a code to an address that actually has an account
+  // (fail fast). Login OTP is unaffected: it may auto-register brand-new users.
+  if (purpose === "reset") {
+    const account = email
+      ? await usersRepo.findUserByEmail(email)
+      : await usersRepo.findUserByPhone(normalizedPhone);
+    if (!account) {
+      return { error: "no account found for this phone or email" };
+    }
+  }
   const { code, codeHash } = generateOtp();
   const expiresAt = new Date(Date.now() + config.otpExpiryMin * 60 * 1000);
   await query(
     `INSERT INTO otp_codes (id, phone, code_hash, purpose, expires_at) VALUES ($1,$2,$3,$4,$5)`,
-    [randomUUID(), usersRepo.normalizeE164(phone), codeHash, purpose, expiresAt.toISOString()]
+    [randomUUID(), normalizedPhone, codeHash, purpose, expiresAt.toISOString()]
   );
+  const params = { code, expiresIn: config.otpExpiryMin };
   await notificationsRepo.logNotification({
-    toPhone: usersRepo.normalizeE164(phone),
+    toPhone: normalizedPhone,
     channel: "sms",
     messageKey: "otp",
     language: "en",
-    params: { code, expiresIn: config.otpExpiryMin },
+    params,
   });
+  // Also deliver the same code by email when a recipient address was provided.
+  if (email) {
+    await notificationsRepo.logNotification({
+      toPhone: normalizedPhone,
+      toEmail: email,
+      channel: "email",
+      messageKey: "otp",
+      language: "en",
+      params,
+    });
+  }
   // In dev (no real SMS gateway) surface the code so end-to-end flows are testable.
   const debugCode = config.env !== "production" && !config.agooSmsApiKey ? code : undefined;
   return { expiresInMin: config.otpExpiryMin, issued: true, debugCode };
@@ -106,7 +135,7 @@ async function loginOrRegisterWithOtp({ phone, name, role, buyerType, location }
       role,
       buyerType,
       location,
-      verified: true,
+      verified: buyersMustVerify(role) ? false : true,
     });
   }
   return { user, token: signToken(user) };
@@ -130,7 +159,11 @@ async function resetPassword({ phone, code, password }) {
 // Sign up with phone/email + password.
 async function registerWithPassword(payload) {
   const passwordHash = await hashPassword(payload.password);
-  const user = await usersRepo.createUser({ ...payload, passwordHash, verified: true });
+  const user = await usersRepo.createUser({
+    ...payload,
+    passwordHash,
+    verified: buyersMustVerify(payload.role) ? false : true,
+  });
   return { user, token: signToken(user) };
 }
 
@@ -189,7 +222,7 @@ async function googleLogin({ idToken, name, role, buyerType }) {
       email: email || null,
       role,
       buyerType,
-      verified: true,
+      verified: buyersMustVerify(role) ? false : true,
     });
     created = true;
   }

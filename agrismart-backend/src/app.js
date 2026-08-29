@@ -1,4 +1,5 @@
 const express = require("express");
+const path = require("path");
 const swaggerUi = require("swagger-ui-express");
 const { errorHandler, notFound } = require("./middleware/error");
 const swaggerSpec = require("./swagger");
@@ -14,6 +15,15 @@ const notificationsRoutes = require("./routes/notifications");
 const ussdRoutes = require("./routes/ussd");
 const summaryRoutes = require("./routes/summary");
 const healthRoutes = require("./routes/health");
+const farmsRoutes = require("./routes/farms");
+const produceRoutes = require("./routes/produce");
+const uploadsRoutes = require("./routes/uploads");
+const bannersRoutes = require("./routes/banners");
+const cartRoutes = require("./routes/cart");
+const wishlistRoutes = require("./routes/wishlist");
+const cropsRoutes = require("./routes/crops");
+const unitsRoutes = require("./routes/units");
+const regionsRoutes = require("./routes/regions");
 
 function createApp() {
   const app = express();
@@ -37,7 +47,19 @@ function createApp() {
   app.use("/api/notifications", notificationsRoutes);
   app.use("/api/summary", summaryRoutes);
   app.use("/api/health", healthRoutes);
+  app.use("/api/farms", farmsRoutes);
+  app.use("/api/produce", produceRoutes);
+  app.use("/api/uploads", uploadsRoutes);
+  app.use("/api/banners", bannersRoutes);
+  app.use("/api/cart", cartRoutes);
+  app.use("/api/wishlist", wishlistRoutes);
+  app.use("/api/crops", cropsRoutes);
+  app.use("/api/units", unitsRoutes);
+  app.use("/api/regions", regionsRoutes);
   app.use("/ussd", ussdRoutes);
+
+  // Serve uploaded images (live photos, produce, farm) from /uploads/*.
+  app.use("/uploads", express.static(path.join(__dirname, "..", "public", "uploads")));
 
   app.get("/", (_req, res) => {
     res.json({

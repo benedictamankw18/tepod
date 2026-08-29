@@ -59,10 +59,13 @@ router.post("/", requireAuth, async (req, res) => {
   const q = Number(quantity);
   const p = Number(offeredPrice);
   if (!listingId) return res.status(400).json({ error: "listingId is required" });
-  if (!q || q <= 0) return res.status(400).json({ error: "quantity must be a positive number" });
-  if (!p || p < 0) return res.status(400).json({ error: "offeredPrice must be a valid amount" });
+  if (!q || !Number.isFinite(q) || q <= 0) return res.status(400).json({ error: "quantity must be a positive number" });
+  if (Number.isNaN(p) || p < 0) return res.status(400).json({ error: "offeredPrice must be a valid amount" });
   if (!["buyer", "market_seller"].includes(req.user.role)) {
     return res.status(403).json({ error: "only buyers and market sellers can submit pre-commitments" });
+  }
+  if (!req.user.verified) {
+    return res.status(403).json({ error: "verify your buyer profile before making a commitment" });
   }
 
   const listing = await listingsRepo.getListing(listingId);
@@ -141,6 +144,11 @@ router.get("/listing/:listingId", async (req, res) => {
 // GET /api/precommitments/buyer/:buyerId
 router.get("/buyer/:buyerId", async (req, res) => {
   res.json(await precommitmentsRepo.preCommitmentsForBuyer(req.params.buyerId));
+});
+
+// GET /api/precommitments/farmer/:farmerId - commitments a farmer received (dashboard), newest first
+router.get("/farmer/:farmerId", async (req, res) => {
+  res.json(await precommitmentsRepo.preCommitmentsForFarmer(req.params.farmerId));
 });
 
 /**
