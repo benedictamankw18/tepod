@@ -230,7 +230,7 @@ export default function AdminBanners() {
         <div className="space-y-3">
           {banners.map((b) => (
             <div key={b.id} className="rounded-2xl border border-line bg-white p-4 shadow-sm">
-              <div className="flex items-start justify-between gap-4">
+              <div className="flex flex-wrap items-start justify-between gap-4">
                 <div className="flex min-w-0 items-center gap-4">
                   {b.imageUrl ? (
                     <img src={b.imageUrl} alt="" className="h-14 w-24 shrink-0 rounded-lg border border-line object-cover" />
@@ -247,7 +247,7 @@ export default function AdminBanners() {
                     <Badge tone={b.active ? 'green' : 'muted'}>{b.active ? 'Active' : 'Inactive'}</Badge>
                   </div>
                 </div>
-                <div className="flex shrink-0 items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <Btn onClick={() => toggleActive(b)}>{b.active ? 'Deactivate' : 'Activate'}</Btn>
                   <Btn onClick={() => openEdit(b)}>Edit</Btn>
                   <Btn tone="danger" onClick={() => remove(b)}>

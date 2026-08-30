@@ -70,7 +70,7 @@ export default function AppShell({ activeId, children, hideCartFloating = false 
 
   return (
     <AppShellContext.Provider value={value}>
-      <div className={isBuyerAccount ? 'min-h-screen bg-paper' : 'flex min-h-screen bg-paper'}>
+      <div className={isBuyerAccount ? 'min-h-screen bg-paper' : 'flex min-h-screen flex-col bg-paper md:flex-row'}>
 
         {isBuyerAccount ? (
           <HorizontalNav links={links} activeId={activeId} />

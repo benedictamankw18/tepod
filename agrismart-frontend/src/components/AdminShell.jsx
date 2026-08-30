@@ -48,7 +48,7 @@ export default function AdminShell() {
 
   return (
     <AdminContext.Provider value={{ flash, toast, setToast }}>
-      <div className="flex min-h-screen bg-paper">
+      <div className="flex min-h-screen flex-col bg-paper md:flex-row">
         <Sidebar user={user} links={LINKS} activeId={activeId} onNavigate={() => {}} />
         <main className="mx-auto w-full max-w-[1320px] flex-1 px-4 py-6 md:px-8 md:py-7">
           <Outlet />

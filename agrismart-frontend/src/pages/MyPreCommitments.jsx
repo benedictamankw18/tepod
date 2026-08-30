@@ -176,7 +176,7 @@ function BuyerCommitmentCard({ pc, payConfig, busy, onAct, onMutate }) {
         setPendingPayment(null)
         flashToast('Payment confirmed. Thanks!')
         if (res.tx?.paymentStatus === 'paid') onMutate()
-      } catch (err) {
+      } catch {
         if (!stop && attempts < MAX_ATTEMPTS) {
           setTimeout(tick, 3000)
         } else if (!stop) {
@@ -334,7 +334,7 @@ function BuyerCommitmentCard({ pc, payConfig, busy, onAct, onMutate }) {
                   the farmer after you confirm delivery.
                 </p>
               )}
-              <div className="flex items-center gap-2">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
                 <input
                   type="number"
                   min="0"
@@ -342,25 +342,27 @@ function BuyerCommitmentCard({ pc, payConfig, busy, onAct, onMutate }) {
                   value={deposit}
                   placeholder={`Deposit (e.g. ${ghc(depositShort)})`}
                   onChange={(e) => setDeposit(e.target.value)}
-                  className="w-full rounded-md border border-line bg-white px-2 py-1 font-sans text-xs text-ink outline-none focus:border-leaf"
+                  className="w-full rounded-md border border-line bg-white px-2 py-1 font-sans text-xs text-ink outline-none focus:border-leaf sm:min-w-0 sm:flex-1"
                   aria-label="Deposit amount"
                 />
-                <button
-                  type="button"
-                  disabled={busy || working || !deposit}
-                  onClick={() => startCharge('deposit', Number(deposit))}
-                  className="shrink-0 rounded-[8px] border border-leaf px-2 py-1.5 font-sans text-xs font-bold text-leaf-dark transition hover:bg-paper disabled:opacity-50"
-                >
-                  Deposit
-                </button>
-                <button
-                  type="button"
-                  disabled={busy || working}
-                  onClick={() => startCharge('balance')}
-                  className="shrink-0 rounded-[8px] bg-leaf px-2 py-1.5 font-sans text-xs font-bold text-white transition hover:bg-leaf-dark disabled:opacity-50"
-                >
-                  Pay balance
-                </button>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    disabled={busy || working || !deposit}
+                    onClick={() => startCharge('deposit', Number(deposit))}
+                    className="flex-1 rounded-[8px] border border-leaf px-2 py-1.5 font-sans text-xs font-bold text-leaf-dark transition hover:bg-paper disabled:opacity-50 sm:flex-none"
+                  >
+                    Deposit
+                  </button>
+                  <button
+                    type="button"
+                    disabled={busy || working}
+                    onClick={() => startCharge('balance')}
+                    className="flex-1 rounded-[8px] bg-leaf px-2 py-1.5 font-sans text-xs font-bold text-white transition hover:bg-leaf-dark disabled:opacity-50 sm:flex-none"
+                  >
+                    Pay balance
+                  </button>
+                </div>
               </div>
             </div>
           )}

@@ -159,9 +159,9 @@ export default function AdminSettings() {
                 <label className={labelCls}>Tiers — amount from (GHS) to {cfg.mode === 'percent' ? 'percentage' : 'amount (GHS)'}</label>
                 <div className="grid gap-2">
                   {cfg.tiers.map((t, i) => (
-                    <div key={i} className="flex items-center gap-2">
+                    <div key={i} className="flex flex-col gap-2 sm:flex-row sm:items-center">
                       <input
-                        className={inputCls}
+                        className={`${inputCls} sm:flex-1`}
                         type="number"
                         min="0"
                         value={t.min}
@@ -169,7 +169,7 @@ export default function AdminSettings() {
                         placeholder="Min amount"
                       />
                       <input
-                        className={inputCls}
+                        className={`${inputCls} sm:flex-1`}
                         type="number"
                         min="0"
                         step={cfg.mode === 'percent' ? '0.1' : '0.01'}
