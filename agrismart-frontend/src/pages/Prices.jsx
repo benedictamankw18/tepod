@@ -67,7 +67,7 @@ function PricesContent() {
         ) : (
           <div className="grid grid-cols-2 gap-3.5 md:grid-cols-3 xl:grid-cols-4">
             {rows.map((r) => (
-              <div key={r.crop} className="rounded-[13px] border border-line bg-[#fbfcfa] p-3.5">
+              <div key={r.crop} className="rounded-[13px] border border-line bg-surface p-3.5">
                 <strong className="block font-serif text-[15px] font-semibold capitalize text-ink">
                   {r.crop}
                 </strong>

@@ -1,7 +1,6 @@
 import { useRegions } from '../lib/regions'
 import SearchableSelect from './SearchableSelect'
-
-const labelCls = 'mb-1 block font-sans text-[11px] uppercase tracking-[.06em] text-muted'
+import { labelCls } from '../lib/ui'
 
 // Cascading Region + District selects driven by the backend regions registry.
 // Values are the display names (matches the free-text region/district stored on

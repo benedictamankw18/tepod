@@ -17,7 +17,7 @@ export function useAppShell() {
 // Shared authenticated layout: role-aware sidebar navigation, a server-backed
 // cart + drawer, toast notifications, and the shared market feed. Individual
 // pages render inside <main> and read shared state via useAppShell().
-export default function AppShell({ activeId, children, hideCartFloating = false }) {
+export default function AppShell({ activeId, children }) {
   const user = getUser()
   const isFarmer = user?.role === 'farmer'
   const isAdmin = user?.role === 'admin'
@@ -87,7 +87,7 @@ export default function AppShell({ activeId, children, hideCartFloating = false 
           {children}
         </main>
 
-        {canHoldCart && !hideCartFloating && (
+        {canHoldCart && (
           <CartDrawer
             open={cartOpen}
             onClose={() => setCartOpen(false)}
@@ -106,7 +106,7 @@ export default function AppShell({ activeId, children, hideCartFloating = false 
           />
         )}
 
-        {isBuyerAccount && !hideCartFloating && (
+        {isBuyerAccount && (
           <button
             type="button"
             onClick={() => {
@@ -116,12 +116,15 @@ export default function AppShell({ activeId, children, hideCartFloating = false 
               }
               setCartOpen(true)
             }}
-            aria-label="Open shopping cart"
+            aria-label={`Open shopping cart${cart.count > 0 ? ` (${cart.count} item${cart.count === 1 ? '' : 's'})` : ''}`}
             className="fixed bottom-6 right-6 z-40 grid h-14 w-14 place-items-center rounded-full bg-leaf text-white shadow-xl transition hover:scale-105 hover:bg-leaf-dark"
           >
             <CartIcon />
             {cart.count > 0 && (
-              <span className="absolute -right-0.5 -top-0.5 grid h-5 min-w-[20px] place-items-center rounded-full bg-amber-500 px-1 font-sans text-[10px] font-bold text-white">
+              <span
+                key={cart.count}
+                className="count-pop absolute -right-0.5 -top-0.5 grid h-5 min-w-[20px] place-items-center rounded-full bg-gold px-1 font-sans text-[10px] font-bold text-leaf-dark"
+              >
                 {cart.count}
               </span>
             )}
@@ -129,7 +132,11 @@ export default function AppShell({ activeId, children, hideCartFloating = false 
         )}
 
         {toast && (
-          <div className="fixed bottom-24 right-6 z-50 max-w-xs rounded-[10px] bg-leaf-dark px-4 py-3.5 font-sans text-xs text-white shadow">
+          <div
+            role="status"
+            aria-live="polite"
+            className="toast-enter fixed bottom-24 right-6 z-50 max-w-xs rounded-[10px] bg-leaf-dark px-4 py-3.5 font-sans text-xs text-white shadow-lg"
+          >
             {toast}
           </div>
         )}

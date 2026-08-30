@@ -1,6 +1,7 @@
 import { createContext, useContext, useState } from 'react'
 import { Navigate, Outlet, useLocation } from 'react-router-dom'
 import { getUser } from '../lib/auth'
+import PageTransition from './PageTransition'
 import Sidebar from './Sidebar'
 
 const AdminContext = createContext(null)
@@ -51,10 +52,16 @@ export default function AdminShell() {
       <div className="flex min-h-screen flex-col bg-paper md:flex-row">
         <Sidebar user={user} links={LINKS} activeId={activeId} onNavigate={() => {}} />
         <main className="mx-auto w-full max-w-[1320px] flex-1 px-4 py-6 md:px-8 md:py-7">
-          <Outlet />
+          <PageTransition>
+            <Outlet />
+          </PageTransition>
         </main>
         {toast && (
-          <div className="fixed bottom-24 right-6 z-50 max-w-xs rounded-[10px] bg-leaf-dark px-4 py-3.5 font-sans text-xs text-white shadow">
+          <div
+            role="status"
+            aria-live="polite"
+            className="toast-enter fixed bottom-24 right-6 z-50 max-w-xs rounded-[10px] bg-leaf-dark px-4 py-3.5 font-sans text-xs text-white shadow-lg"
+          >
             {toast}
           </div>
         )}

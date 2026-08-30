@@ -40,7 +40,7 @@ function SupportContent() {
 
       <div className="grid gap-4 md:grid-cols-2">
         {items.map((it) => (
-          <div key={it.title} className="rounded-[13px] border border-line bg-[#fbfcfa] p-4">
+          <div key={it.title} className="rounded-[13px] border border-line bg-surface p-4">
             <strong className="font-serif text-[15px] font-semibold text-ink">{it.title}</strong>
             <p className="mt-1.5 font-sans text-xs leading-relaxed text-muted">{it.copy}</p>
           </div>
@@ -88,7 +88,7 @@ function SupportContent() {
           onClick={() =>
             flashToast('Support request noted. A field facilitator will contact you within field hours.')
           }
-          className="rounded-[10px] bg-[#e8f0c5] px-4 py-2.5 font-sans text-xs font-bold text-leaf-dark transition hover:bg-lime"
+          className="rounded-[10px] bg-lime-soft px-4 py-2.5 font-sans text-xs font-bold text-leaf-dark transition hover:bg-lime"
         >
           Request support
         </button>

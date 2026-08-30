@@ -1,5 +1,7 @@
-import { BrowserRouter, Route, Routes } from 'react-router-dom'
+import { useEffect } from 'react'
+import { BrowserRouter, Route, Routes, useLocation } from 'react-router-dom'
 import { getUser } from './lib/auth'
+import PageTransition from './components/PageTransition'
 import Login from './pages/Login'
 import Register from './pages/Register'
 import ForgotPassword from './pages/ForgotPassword'
@@ -36,6 +38,15 @@ import ProduceDetail from './pages/ProduceDetail'
 import Settings from './pages/Settings'
 import ProtectedRoute from './components/ProtectedRoute'
 
+// Reset scroll on every route change so page-enter transitions start from the top.
+function ScrollToTop() {
+  const { pathname } = useLocation()
+  useEffect(() => {
+    window.scrollTo(0, 0)
+  }, [pathname])
+  return null
+}
+
 // Buyers land on the marketplace (their start page); everyone else on the dashboard.
 function Home() {
   const user = getUser()
@@ -45,83 +56,102 @@ function Home() {
 export default function App() {
   return (
     <BrowserRouter>
+      <ScrollToTop />
       <Routes>
-        <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} />
-        <Route path="/forgot-password" element={<ForgotPassword />} />
-        <Route path="/terms" element={<TermsPage />} />
-        <Route path="/privacy" element={<PrivacyPage />} />
-        <Route path="/about" element={<AboutPage />} />
+        <Route path="/login" element={<PageTransition><Login /></PageTransition>} />
+        <Route path="/register" element={<PageTransition><Register /></PageTransition>} />
+        <Route path="/forgot-password" element={<PageTransition><ForgotPassword /></PageTransition>} />
+        <Route path="/terms" element={<PageTransition><TermsPage /></PageTransition>} />
+        <Route path="/privacy" element={<PageTransition><PrivacyPage /></PageTransition>} />
+        <Route path="/about" element={<PageTransition><AboutPage /></PageTransition>} />
         <Route
           path="/"
           element={
-            <ProtectedRoute>
-              <Home />
-            </ProtectedRoute>
+            <PageTransition>
+              <ProtectedRoute>
+                <Home />
+              </ProtectedRoute>
+            </PageTransition>
           }
         />
         <Route
           path="/marketplace"
           element={
-            <ProtectedRoute>
-              <MarketplacePage />
-            </ProtectedRoute>
+            <PageTransition>
+              <ProtectedRoute>
+                <MarketplacePage />
+              </ProtectedRoute>
+            </PageTransition>
           }
         />
         <Route
           path="/activity"
           element={
-            <ProtectedRoute>
-              <ActivityPage />
-            </ProtectedRoute>
+            <PageTransition>
+              <ProtectedRoute>
+                <ActivityPage />
+              </ProtectedRoute>
+            </PageTransition>
           }
         />
         <Route
           path="/farms"
           element={
-            <ProtectedRoute>
-              <FarmsPage />
-            </ProtectedRoute>
+            <PageTransition>
+              <ProtectedRoute>
+                <FarmsPage />
+              </ProtectedRoute>
+            </PageTransition>
           }
         />
         <Route
           path="/prices"
           element={
-            <ProtectedRoute>
-              <PricesPage />
-            </ProtectedRoute>
+            <PageTransition>
+              <ProtectedRoute>
+                <PricesPage />
+              </ProtectedRoute>
+            </PageTransition>
           }
         />
         <Route
           path="/support"
           element={
-            <ProtectedRoute>
-              <SupportPage />
-            </ProtectedRoute>
+            <PageTransition>
+              <ProtectedRoute>
+                <SupportPage />
+              </ProtectedRoute>
+            </PageTransition>
           }
         />
         <Route
           path="/verify"
           element={
-            <ProtectedRoute>
-              <BuyerVerification />
-            </ProtectedRoute>
+            <PageTransition>
+              <ProtectedRoute>
+                <BuyerVerification />
+              </ProtectedRoute>
+            </PageTransition>
           }
         />
         <Route
           path="/precommitments"
           element={
-            <ProtectedRoute>
-              <MyPreCommitmentsPage />
-            </ProtectedRoute>
+            <PageTransition>
+              <ProtectedRoute>
+                <MyPreCommitmentsPage />
+              </ProtectedRoute>
+            </PageTransition>
           }
         />
         <Route
           path="/notifications"
           element={
-            <ProtectedRoute>
-              <NotificationsPage />
-            </ProtectedRoute>
+            <PageTransition>
+              <ProtectedRoute>
+                <NotificationsPage />
+              </ProtectedRoute>
+            </PageTransition>
           }
         />
         <Route
@@ -152,25 +182,31 @@ export default function App() {
         <Route
           path="/produce/:id"
           element={
-            <ProtectedRoute>
-              <ProduceDetail />
-            </ProtectedRoute>
+            <PageTransition>
+              <ProtectedRoute>
+                <ProduceDetail />
+              </ProtectedRoute>
+            </PageTransition>
           }
         />
         <Route
           path="/settings"
           element={
-            <ProtectedRoute>
-              <Settings />
-            </ProtectedRoute>
+            <PageTransition>
+              <ProtectedRoute>
+                <Settings />
+              </ProtectedRoute>
+            </PageTransition>
           }
         />
         <Route
           path="*"
           element={
-            <ProtectedRoute>
-              <Home />
-            </ProtectedRoute>
+            <PageTransition>
+              <ProtectedRoute>
+                <Home />
+              </ProtectedRoute>
+            </PageTransition>
           }
         />
       </Routes>

@@ -66,7 +66,7 @@ function FarmDetail({ farm, onEdit, onDelete, onClose }) {
         <button
           type="button"
           onClick={onDelete}
-          className="rounded-[10px] border border-line bg-white px-4 py-2.5 font-sans text-xs font-bold text-red-700 transition hover:bg-red-50"
+          className="rounded-[10px] border border-line bg-white px-4 py-2.5 font-sans text-xs font-bold text-bad-text transition hover:bg-bad"
         >
           Delete
         </button>
@@ -219,7 +219,7 @@ function FarmsContent() {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search plot, crop, location…"
-            className="w-full flex-1 rounded-[10px] border border-line bg-[#fbfcfa] px-3 py-2.5 font-sans text-sm text-ink outline-none focus:border-leaf focus:shadow-[0_0_0_3px_rgba(29,101,79,.12)]"
+            className="w-full flex-1 rounded-[10px] border border-line bg-surface px-3 py-2.5 font-sans text-sm text-ink outline-none focus:border-leaf focus:shadow-[0_0_0_3px_rgba(29,101,79,.12)]"
           />
           <SearchableSelect
             value={cropFilter}
@@ -239,7 +239,7 @@ function FarmsContent() {
       </div>
 
       {error && (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 font-sans text-sm text-red-700">
+        <div className="rounded-lg border border-bad/40 bg-bad px-3 py-2 font-sans text-sm text-bad-text">
           {error}
         </div>
       )}

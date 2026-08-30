@@ -48,7 +48,7 @@ export default function About() {
           ← Back
         </Link>
 
-        <header className="mt-4 rounded-[18px] border border-line bg-leaf-dark px-6 py-8 text-center text-[#eff5e9] shadow md:px-10">
+        <header className="mt-4 rounded-[18px] border border-line bg-leaf-dark px-6 py-8 text-center text-fog shadow md:px-10">
           <img src={logo} alt="NKABOM AGRILINK logo" className="mx-auto mb-3 h-14 w-14 rounded-lg object-contain" />
           <p className="font-sans text-[11px] font-bold uppercase tracking-[.15em] text-lime">
             About us
@@ -56,7 +56,7 @@ export default function About() {
           <h1 className="mt-2 font-serif text-[clamp(28px,4.5vw,44px)] font-semibold leading-none tracking-[-.05em]">
             About NKABOM AGRILINK
           </h1>
-          <p className="mx-auto mt-3 max-w-xl font-sans text-sm leading-relaxed text-[#c8d9d0]">
+          <p className="mx-auto mt-3 max-w-xl font-sans text-sm leading-relaxed text-fern">
             Better timing. Fairer prices. Less produce lost between harvest and home.
           </p>
         </header>

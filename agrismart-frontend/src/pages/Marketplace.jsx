@@ -6,6 +6,7 @@ import HeroBanner from '../components/HeroBanner'
 import Chip from '../components/Chip'
 import Empty from '../components/Empty'
 import Modal from '../components/Modal'
+import Reveal from '../components/Reveal'
 import ListingForm from '../components/ListingForm'
 import SearchableSelect from '../components/SearchableSelect'
 import { getBanners, getListings, getProduce, getMyPurchases } from '../lib/api'
@@ -102,7 +103,7 @@ function FarmerMarketplace() {
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search tomato, Kasoa…"
-          className="w-full flex-1 rounded-[10px] border border-line bg-[#fbfcfa] px-3 py-2.5 font-sans text-sm text-ink outline-none focus:border-leaf focus:shadow-[0_0_0_3px_rgba(29,101,79,.12)]"
+          className="w-full flex-1 rounded-[10px] border border-line bg-surface px-3 py-2.5 font-sans text-sm text-ink outline-none focus:border-leaf focus:shadow-[0_0_0_3px_rgba(29,101,79,.12)]"
         />
         <SearchableSelect
           value={cropFilter}
@@ -114,7 +115,7 @@ function FarmerMarketplace() {
       </div>
 
       {error && (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 font-sans text-sm text-red-700">
+        <div className="rounded-lg border border-bad/40 bg-bad px-3 py-2 font-sans text-sm text-bad-text">
           {error}
         </div>
       )}
@@ -125,14 +126,15 @@ function FarmerMarketplace() {
         <Empty>You haven't listed any produce yet. Use + New listing to publish your first harvest.</Empty>
       ) : filtered.length ? (
         <div className="grid grid-cols-2 gap-3.5 md:grid-cols-3 xl:grid-cols-4">
-          {filtered.map((l) => (
-            <ProductCard
-              key={l.id}
-              item={l}
-              viewOnly
-              onView={() => navigate(`/produce/${l.id}`)}
-              statusChip={l.status !== 'open' ? STATUS_LABELS[l.status]?.label : null}
-            />
+          {filtered.map((l, i) => (
+            <Reveal key={l.id} delay={Math.min(i, 8)}>
+              <ProductCard
+                item={l}
+                viewOnly
+                onView={() => navigate(`/produce/${l.id}`)}
+                statusChip={l.status !== 'open' ? STATUS_LABELS[l.status]?.label : null}
+              />
+            </Reveal>
           ))}
         </div>
       ) : (
@@ -230,7 +232,7 @@ function BuyerMarketplace() {
       <HeroBanner banners={banners || []} />
 
       <header className="flex items-end justify-between gap-4">
-        <div>
+        <Reveal as="div" className="min-w-0">
           <span className="font-sans text-[11px] font-bold uppercase tracking-[.15em] text-leaf">
             Market place
           </span>
@@ -238,7 +240,7 @@ function BuyerMarketplace() {
             Fresh produce, nearby
           </h1>
           <p className="mt-2 font-sans text-sm text-muted">Pick your quantity and lock in your order.</p>
-        </div>
+        </Reveal>
         <span className="shrink-0 font-sans text-xs text-muted">
           {filtered.length} product{filtered.length === 1 ? '' : 's'}
         </span>
@@ -302,7 +304,7 @@ function BuyerMarketplace() {
       </div>
 
       {error && (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 font-sans text-sm text-red-700">
+        <div className="rounded-lg border border-bad/40 bg-bad px-3 py-2 font-sans text-sm text-bad-text">
           {error}
         </div>
       )}
@@ -319,24 +321,25 @@ function BuyerMarketplace() {
         </div>
       ) : (
         <div className="grid grid-cols-2 gap-3.5 md:grid-cols-3 xl:grid-cols-4">
-          {filtered.map((p) => (
-            <ProductCard
-              key={p.id}
-              item={p}
-              qty={cartQtyOf(p.id)}
-              inCart={cartQtyOf(p.id) > 0}
-              onQty={(item, d) => (!user.verified ? verifyPrompt() : cart.setQty(item.id, d))}
-              onAdd={(item) => {
-                if (!user.verified) return verifyPrompt()
-                cart.add(item)
-                flashToast(`${item.cropType} added to cart`)
-              }}
-              onWishlist={toggleWishlist}
-              wished={wished.has(p.id)}
-              verified={user.verified}
-              onVerifyPrompt={verifyPrompt}
-              onView={(item) => navigate(`/produce/${item.id}`)}
-            />
+          {filtered.map((p, i) => (
+            <Reveal key={p.id} delay={Math.min(i, 8)}>
+              <ProductCard
+                item={p}
+                qty={cartQtyOf(p.id)}
+                inCart={cartQtyOf(p.id) > 0}
+                onQty={(item, d) => (!user.verified ? verifyPrompt() : cart.setQty(item.id, d))}
+                onAdd={(item) => {
+                  if (!user.verified) return verifyPrompt()
+                  cart.add(item)
+                  flashToast(`${item.cropType} added to cart`)
+                }}
+                onWishlist={toggleWishlist}
+                wished={wished.has(p.id)}
+                verified={user.verified}
+                onVerifyPrompt={verifyPrompt}
+                onView={(item) => navigate(`/produce/${item.id}`)}
+              />
+            </Reveal>
           ))}
         </div>
       )}
@@ -354,7 +357,7 @@ function BuyerMarketplace() {
               const status = STATUS_LABELS[tx.paymentStatus] || { label: tx.paymentStatus, cls: 'bg-paper text-muted' }
               return (
                 <div key={tx.id} className="flex gap-3 rounded-[12px] border border-line bg-white p-3">
-                  <div className="h-14 w-14 shrink-0 overflow-hidden rounded-lg bg-[#f2f0ea]">
+                  <div className="h-14 w-14 shrink-0 overflow-hidden rounded-lg bg-thumb">
                     {pic ? (
                       <img src={pic} alt="" className="h-full w-full object-cover" />
                     ) : (

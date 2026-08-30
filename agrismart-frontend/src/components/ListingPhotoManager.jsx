@@ -87,13 +87,13 @@ export default function ListingPhotoManager({ listing, onDone }) {
             type="button"
             onClick={() => fileRef.current?.click()}
             disabled={busy}
-            className="grid h-16 w-16 place-items-center rounded-lg border border-dashed border-line bg-[#fbfcfa] font-sans text-xs text-muted transition hover:border-leaf hover:text-leaf disabled:opacity-50"
+            className="grid h-16 w-16 place-items-center rounded-lg border border-dashed border-line bg-surface font-sans text-xs text-muted transition hover:border-leaf hover:text-leaf disabled:opacity-50"
           >
             {busy ? '…' : '+ Add'}
           </button>
         )}
       </div>
-      {error && <p className="mt-2 font-sans text-xs text-red-600">{error}</p>}
+      {error && <p className="mt-2 font-sans text-xs text-bad-text">{error}</p>}
       <div className="mt-3 flex items-center justify-end gap-2">
         {saved && <span className="mr-auto font-sans text-xs text-leaf">Saved</span>}
         {dirty && (

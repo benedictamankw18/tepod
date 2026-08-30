@@ -197,7 +197,7 @@ export default function AdminUnits() {
       />
 
       {error && (
-        <div className="mb-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 font-sans text-sm text-red-700">
+        <div className="mb-4 rounded-md border border-bad/40 bg-bad px-3 py-2 font-sans text-sm text-bad-text">
           {error}
         </div>
       )}
@@ -274,7 +274,7 @@ export default function AdminUnits() {
           />
 
           {importParsed.failed.length > 0 && (
-            <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 font-sans text-[12px] text-amber-800">
+            <div className="rounded-md border border-warn/40 bg-warn-soft px-3 py-2 font-sans text-[12px] text-warn">
               <p className="font-bold">Skipped lines</p>
               <ul className="mt-1 list-inside list-disc space-y-0.5">
                 {importParsed.failed.slice(0, 5).map((f, i) => (
@@ -288,7 +288,7 @@ export default function AdminUnits() {
           )}
 
           {importError && (
-            <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 font-sans text-sm text-red-700">{importError}</div>
+            <div className="rounded-md border border-bad/40 bg-bad px-3 py-2 font-sans text-sm text-bad-text">{importError}</div>
           )}
 
           <div className="flex justify-end gap-2">

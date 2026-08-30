@@ -77,9 +77,11 @@ export default function CartDrawer({
 
   return (
     <>
-      {open && <div className="fixed inset-0 z-40 bg-ink/40" onClick={onClose} aria-hidden="true" />}
+      {open && (
+        <div className="modal-overlay-in fixed inset-0 z-40 bg-ink/40" onClick={onClose} aria-hidden="true" />
+      )}
       <aside
-        className={`fixed right-0 top-0 z-50 flex h-full w-full max-w-sm flex-col bg-white shadow-xl transition-transform duration-300 ${
+        className={`fixed right-0 top-0 z-50 flex h-full w-full max-w-sm flex-col bg-white shadow-xl transition-transform duration-mid ease-drawer ${
           open ? 'translate-x-0' : 'translate-x-full'
         }`}
         aria-label="Shopping cart"
@@ -108,7 +110,7 @@ export default function CartDrawer({
           ) : (
             <div className="space-y-3">
               {items.map((l) => (
-                <div key={l.listingId} className="rounded-xl border border-line bg-[#fbfcfa] p-3">
+                <div key={l.listingId} className="rounded-xl border border-line bg-surface p-3">
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
                       <p className="truncate font-serif text-base font-semibold capitalize text-ink">
@@ -122,7 +124,7 @@ export default function CartDrawer({
                       type="button"
                       onClick={() => onRemove(l.listingId)}
                       aria-label={`Remove ${l.cropType}`}
-                      className="font-sans text-xs text-red-600 hover:underline"
+                      className="font-sans text-xs text-bad-text hover:underline"
                     >
                       Remove
                     </button>
@@ -180,7 +182,7 @@ export default function CartDrawer({
         {items.length > 0 && (
           <div className="border-t border-line px-4 py-3.5">
             {error && (
-              <div className="mb-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 font-sans text-xs text-red-700">
+              <div className="mb-3 rounded-md border border-bad/40 bg-bad px-3 py-2 font-sans text-xs text-bad-text">
                 {error}
               </div>
             )}

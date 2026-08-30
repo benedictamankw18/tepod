@@ -263,7 +263,7 @@ export default function AdminListings() {
       />
 
       {error && (
-        <div className="mb-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 font-sans text-sm text-red-700">
+        <div className="mb-4 rounded-md border border-bad/40 bg-bad px-3 py-2 font-sans text-sm text-bad-text">
           {error}
         </div>
       )}
@@ -281,7 +281,7 @@ export default function AdminListings() {
                   {l.imageUrls?.[0] ? (
                     <img src={l.imageUrls[0]} alt="" className="h-10 w-14 shrink-0 rounded-lg border border-line object-cover" />
                   ) : (
-                    <span className="grid h-10 w-14 shrink-0 place-items-center rounded-lg bg-[#e8f0c5] font-serif text-xs font-bold text-leaf-dark">
+                    <span className="grid h-10 w-14 shrink-0 place-items-center rounded-lg bg-lime-soft font-serif text-xs font-bold text-leaf-dark">
                       {l.cropType.slice(0, 2).toUpperCase()}
                     </span>
                   )}
@@ -302,7 +302,7 @@ export default function AdminListings() {
                   value={l.status}
                   disabled={busy === l.id}
                   onChange={(e) => changeStatus(l, e.target.value)}
-                  className="rounded-[8px] border border-line bg-[#fbfcfa] px-2 py-1.5 font-sans text-xs capitalize text-ink outline-none focus:border-leaf"
+                  className="rounded-[8px] border border-line bg-surface px-2 py-1.5 font-sans text-xs capitalize text-ink outline-none focus:border-leaf"
                 >
                   {STATUSES.map((s) => (
                     <option key={s} value={s}>

@@ -152,12 +152,12 @@ export default function ProductCard({
             {item.farmName && <span> · From {item.farmName}</span>}
           </p>
           {item.maturity && (
-            <span className="mt-1 inline-block rounded-full bg-[#e8f0c5] px-2 py-0.5 font-sans text-[10px] font-bold capitalize text-leaf-dark">
+            <span className="mt-1 inline-block rounded-full bg-lime-soft px-2 py-0.5 font-sans text-[10px] font-bold capitalize text-leaf-dark">
               {item.maturity}
             </span>
           )}
           {item.status === 'pre_committed' && item.committedByMe && (
-            <span className="mt-1 inline-block rounded-full bg-amber-100 px-2 py-0.5 font-sans text-[10px] font-bold text-amber-800">
+            <span className="mt-1 inline-block rounded-full bg-warn-soft px-2 py-0.5 font-sans text-[10px] font-bold text-warn">
               Pre-committed
             </span>
           )}
@@ -168,7 +168,7 @@ export default function ProductCard({
           )}
           {item.rating != null && (
             <span className="mt-1 block font-sans text-[11px] font-semibold text-ink">
-              <span className="text-amber-500" aria-hidden="true">★</span>{' '}
+              <span className="text-gold" aria-hidden="true">★</span>{' '}
               {item.rating.toFixed(1)} · {item.reviewCount} review{item.reviewCount === 1 ? '' : 's'}
             </span>
           )}
@@ -185,7 +185,7 @@ export default function ProductCard({
             <button
               type="button"
               onClick={() => onView?.(item)}
-              className="rounded-[10px] border border-line bg-[#fbfcfa] px-3.5 py-2 font-sans text-xs font-bold text-leaf transition hover:bg-paper hover:text-leaf-dark"
+              className="rounded-[10px] border border-line bg-surface px-3.5 py-2 font-sans text-xs font-bold text-leaf transition hover:bg-paper hover:text-leaf-dark"
             >
               Details
             </button>
@@ -219,7 +219,7 @@ export default function ProductCard({
                 }
                 onAdd?.(item)
               }}
-              className="rounded-[10px] border border-line bg-[#fbfcfa] px-3.5 py-2 font-sans text-xs font-bold text-leaf transition hover:bg-paper hover:text-leaf-dark"
+              className="rounded-[10px] border border-line bg-surface px-3.5 py-2 font-sans text-xs font-bold text-leaf transition hover:bg-paper hover:text-leaf-dark"
             >
               Add to cart
             </button>

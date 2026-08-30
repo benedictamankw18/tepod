@@ -6,14 +6,11 @@ import PasswordInput from '../components/PasswordInput'
 import { register, checkAvailability } from '../lib/api'
 import { setSession } from '../lib/auth'
 import { isValidGhanaPhone } from '../lib/phone'
+import { inputCls, labelCls } from '../lib/ui'
 import { useCrops } from '../lib/crops'
 import CropPicker from '../components/CropPicker'
 import SearchableSelect from '../components/SearchableSelect'
 import AgreementCheckbox from '../components/AgreementCheckbox'
-
-const inputCls =
-  'w-full rounded-[10px] border border-line bg-[#fbfcfa] px-3 py-2.5 font-sans text-sm text-ink outline-none focus:border-leaf focus:shadow-[0_0_0_3px_rgba(29,101,79,.12)]'
-const labelCls = 'mb-1 block font-sans text-[11px] uppercase tracking-[.06em] text-muted'
 
 const initialChecks = { phone: 'idle', email: 'idle', username: 'idle' }
 
@@ -155,9 +152,9 @@ export default function Register() {
   const fieldMsg = (field) => {
     if (checks[field] === 'checking') return { text: 'Checking…', cls: 'text-muted' }
     if (checks[field] === 'available') return { text: looksFree[field], cls: 'text-leaf' }
-    if (checks[field] === 'taken') return { text: looksTaken[field], cls: 'text-red-700' }
+    if (checks[field] === 'taken') return { text: looksTaken[field], cls: 'text-bad-text' }
     if (checks[field] === 'format') {
-      return { text: 'Enter a valid Ghanaian mobile number (e.g. 0241234567).', cls: 'text-red-700' }
+      return { text: 'Enter a valid Ghanaian mobile number (e.g. 0241234567).', cls: 'text-bad-text' }
     }
     return null
   }
@@ -223,7 +220,7 @@ export default function Register() {
   return (
     <AuthLayout title="Create your account" subtitle="Join as a farmer or a buyer">
       {error && (
-        <div className="mb-4 rounded-md bg-red-50 border border-red-200 px-3 py-2 text-sm text-red-700">
+        <div className="mb-4 rounded-md bg-bad border border-bad/40 px-3 py-2 text-sm text-bad-text">
           {error}
         </div>
       )}
@@ -386,7 +383,7 @@ export default function Register() {
             autoComplete="new-password"
           />
           {passwordMismatch && (
-            <p className="mt-1 text-xs text-red-700">Passwords do not match.</p>
+            <p className="mt-1 text-xs text-bad-text">Passwords do not match.</p>
           )}
         </div>
 

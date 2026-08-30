@@ -174,7 +174,7 @@ export default function SearchableSelect({
         }}
         onKeyDown={onKeyDown}
         onBlur={onBlur}
-        className="w-full rounded-[10px] border border-line bg-[#fbfcfa] px-3 py-2.5 font-sans text-sm text-ink outline-none focus:border-leaf focus:shadow-[0_0_0_3px_rgba(29,101,79,.12)]"
+        className="w-full rounded-[10px] border border-line bg-surface px-3 py-2.5 font-sans text-sm text-ink outline-none focus:border-leaf focus:shadow-[0_0_0_3px_rgba(29,101,79,.12)]"
       />
       <button
         type="button"
@@ -210,7 +210,7 @@ export default function SearchableSelect({
                 onClick={() => pick(o)}
                 onMouseEnter={() => setHighlight(i)}
                 className={`block w-full px-3 py-2 text-left font-sans text-sm ${
-                  i === highlight ? 'bg-[#eef5f0] text-leaf-dark' : 'text-ink'
+                  i === highlight ? 'bg-ok-soft text-leaf-dark' : 'text-ink'
                 } ${o.value === activeValue ? 'font-semibold' : ''}`}
               >
                 {o.label}
@@ -227,7 +227,7 @@ export default function SearchableSelect({
                 onClick={commitNew}
                 onMouseEnter={() => setHighlight(addIndex)}
                 className={`block w-full px-3 py-2 text-left font-sans text-sm ${
-                  highlight === addIndex ? 'bg-[#eef5f0] text-leaf-dark' : 'text-ink'
+                  highlight === addIndex ? 'bg-ok-soft text-leaf-dark' : 'text-ink'
                 }`}
               >
                 Add “{trimmedText}”

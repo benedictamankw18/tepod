@@ -3,10 +3,8 @@ import { createFarm, updateFarm, uploadImage } from '../lib/api'
 import { useCrops, cropKey, displayName } from '../lib/crops'
 import { Panel, PanelHead } from './Panel'
 import SearchableSelect from './SearchableSelect'
+import { inputCls, labelCls } from '../lib/ui'
 
-const inputCls =
-  'w-full rounded-[10px] border border-line bg-[#fbfcfa] px-3 py-2.5 font-sans text-sm text-ink outline-none focus:border-leaf focus:shadow-[0_0_0_3px_rgba(29,101,79,.12)]'
-const labelCls = 'mb-1 block font-sans text-[11px] uppercase tracking-[.06em] text-muted'
 const fieldCls = 'mb-3'
 const STAGE_OPTIONS = [
   { value: 'pre_harvest', label: 'Pre-harvest' },
@@ -134,7 +132,7 @@ export default function FarmForm({ defaultLocation = '', farm, onDone, onCancel 
         sub={isEdit ? 'Update the details of this plot.' : 'Track a pre- or post-harvest plot you grow.'}
       />
       {error && (
-        <div className="mb-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 font-sans text-sm text-red-700">
+        <div className="mb-4 rounded-md border border-bad/40 bg-bad px-3 py-2 font-sans text-sm text-bad-text">
           {error}
         </div>
       )}
@@ -156,7 +154,7 @@ export default function FarmForm({ defaultLocation = '', farm, onDone, onCancel 
           </div>
           <div className={fieldCls}>
             <label className={labelCls}>Stage</label>
-            <div className="grid grid-cols-2 gap-1 rounded-[10px] border border-line bg-[#fbfcfa] p-1">
+            <div className="grid grid-cols-2 gap-1 rounded-[10px] border border-line bg-surface p-1">
               {STAGE_OPTIONS.map((s) => (
                 <button
                   key={s.value}
@@ -202,7 +200,7 @@ export default function FarmForm({ defaultLocation = '', farm, onDone, onCancel 
               type="button"
               onClick={detectLocation}
               disabled={detecting}
-              className="w-full rounded-[10px] border border-dashed border-line bg-[#fbfcfa] px-3 py-2.5 font-sans text-xs font-bold text-leaf transition hover:border-leaf hover:bg-paper disabled:opacity-50"
+              className="w-full rounded-[10px] border border-dashed border-line bg-surface px-3 py-2.5 font-sans text-xs font-bold text-leaf transition hover:border-leaf hover:bg-paper disabled:opacity-50"
             >
               {detecting ? 'Detecting…' : 'Auto-detect my location (I am at the farm)'}
             </button>
@@ -230,7 +228,7 @@ export default function FarmForm({ defaultLocation = '', farm, onDone, onCancel 
               type="button"
               onClick={() => fileRef.current?.click()}
               disabled={uploading}
-              className="grid h-20 w-20 place-items-center rounded-lg border border-dashed border-line bg-[#fbfcfa] font-sans text-xs text-muted transition hover:border-leaf hover:text-leaf disabled:opacity-50"
+              className="grid h-20 w-20 place-items-center rounded-lg border border-dashed border-line bg-surface font-sans text-xs text-muted transition hover:border-leaf hover:text-leaf disabled:opacity-50"
             >
               {uploading ? 'Uploading…' : imageUrl ? 'Change' : '+ Add'}
             </button>

@@ -98,7 +98,7 @@ export default function CropPicker({
               }
             }}
             placeholder={placeholder}
-            className="w-full min-w-0 flex-1 rounded-[8px] border border-line bg-[#fbfcfa] px-2.5 py-1.5 font-sans text-xs text-ink outline-none focus:border-leaf focus:shadow-[0_0_0_3px_rgba(29,101,79,.12)]"
+            className="w-full min-w-0 flex-1 rounded-[8px] border border-line bg-surface px-2.5 py-1.5 font-sans text-xs text-ink outline-none focus:border-leaf focus:shadow-[0_0_0_3px_rgba(29,101,79,.12)]"
           />
           <button
             type="button"
@@ -118,7 +118,7 @@ export default function CropPicker({
           >
             Cancel
           </button>
-          {error && <p className="w-full font-sans text-xs text-red-700">{error}</p>}
+          {error && <p className="w-full font-sans text-xs text-bad-text">{error}</p>}
         </div>
       )}
     </div>

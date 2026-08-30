@@ -130,7 +130,7 @@ export default function AdminBanners() {
       />
 
       {!formOpen && error && (
-        <div className="mb-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 font-sans text-sm text-red-700">
+        <div className="mb-4 rounded-md border border-bad/40 bg-bad px-3 py-2 font-sans text-sm text-bad-text">
           {error}
         </div>
       )}
@@ -143,7 +143,7 @@ export default function AdminBanners() {
           maxWidth="max-w-lg"
         >
           {error && (
-            <div className="mb-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 font-sans text-sm text-red-700">
+            <div className="mb-4 rounded-md border border-bad/40 bg-bad px-3 py-2 font-sans text-sm text-bad-text">
               {error}
             </div>
           )}
@@ -197,13 +197,13 @@ export default function AdminBanners() {
                     type="button"
                     onClick={() => fileRef.current?.click()}
                     disabled={busy}
-                    className="grid h-20 w-40 place-items-center rounded-lg border border-dashed border-line bg-[#fbfcfa] font-sans text-xs text-muted hover:border-leaf hover:text-leaf disabled:opacity-50"
+                    className="grid h-20 w-40 place-items-center rounded-lg border border-dashed border-line bg-surface font-sans text-xs text-muted hover:border-leaf hover:text-leaf disabled:opacity-50"
                   >
                     {busy ? 'Uploading…' : '+ Add image'}
                   </button>
                 )}
                 {form.imageUrl && (
-                  <button type="button" onClick={() => setForm((f) => ({ ...f, imageUrl: '' }))} className="font-sans text-xs text-red-600 hover:underline">
+                  <button type="button" onClick={() => setForm((f) => ({ ...f, imageUrl: '' }))} className="font-sans text-xs text-bad-text hover:underline">
                     Remove image
                   </button>
                 )}
@@ -235,7 +235,7 @@ export default function AdminBanners() {
                   {b.imageUrl ? (
                     <img src={b.imageUrl} alt="" className="h-14 w-24 shrink-0 rounded-lg border border-line object-cover" />
                   ) : (
-                    <span className="flex h-14 w-24 shrink-0 items-center justify-center rounded-lg bg-[#e8f0c5] font-serif text-xs font-bold text-leaf-dark">
+                    <span className="flex h-14 w-24 shrink-0 items-center justify-center rounded-lg bg-lime-soft font-serif text-xs font-bold text-leaf-dark">
                       {b.title.slice(0, 2).toUpperCase()}
                     </span>
                   )}

@@ -217,7 +217,7 @@ export default function AdminUsers() {
       </div>
 
       {error && (
-        <div className="mb-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 font-sans text-sm text-red-700">
+        <div className="mb-4 rounded-md border border-bad/40 bg-bad px-3 py-2 font-sans text-sm text-bad-text">
           {error}
         </div>
       )}
@@ -243,7 +243,7 @@ export default function AdminUsers() {
                   {deleted ? (
                     <span className="font-sans text-sm text-muted">{ROLE_LABELS[u.role]}</span>
                   ) : (
-                    <select value={u.role} disabled={busy === u.id} onChange={(e) => changeRole(u, e.target.value)} className="rounded-[8px] border border-line bg-[#fbfcfa] px-2 py-1.5 font-sans text-xs text-ink outline-none focus:border-leaf">
+                    <select value={u.role} disabled={busy === u.id} onChange={(e) => changeRole(u, e.target.value)} className="rounded-[8px] border border-line bg-surface px-2 py-1.5 font-sans text-xs text-ink outline-none focus:border-leaf">
                       {ROLES.map((r) => (
                         <option key={r} value={r}>
                           {ROLE_LABELS[r]}

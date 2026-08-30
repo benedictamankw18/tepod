@@ -110,7 +110,7 @@ export default function AdminTransport() {
       />
 
       {error && (
-        <div className="mb-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 font-sans text-sm text-red-700">
+        <div className="mb-4 rounded-md border border-bad/40 bg-bad px-3 py-2 font-sans text-sm text-bad-text">
           {error}
         </div>
       )}
@@ -142,7 +142,7 @@ export default function AdminTransport() {
                     value={tr.status}
                     disabled={busy === tr.id}
                     onChange={(e) => changeStatus(tr, e.target.value)}
-                    className="rounded-[8px] border border-line bg-[#fbfcfa] px-2 py-1.5 font-sans text-xs capitalize text-ink outline-none focus:border-leaf"
+                    className="rounded-[8px] border border-line bg-surface px-2 py-1.5 font-sans text-xs capitalize text-ink outline-none focus:border-leaf"
                   >
                     {STATUSES.map((s) => (
                       <option key={s} value={s}>

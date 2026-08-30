@@ -257,7 +257,7 @@ function BuyerCommitmentCard({ pc, payConfig, busy, onAct, onMutate }) {
               type="button"
               disabled={busy || working}
               onClick={() => onAct(pc, 'decline')}
-              className="flex-1 rounded-[8px] border border-red-200 bg-red-50 px-2 py-1.5 font-sans text-xs font-bold text-red-700 transition hover:bg-red-100 disabled:opacity-50"
+              className="flex-1 rounded-[8px] border border-bad/40 bg-bad px-2 py-1.5 font-sans text-xs font-bold text-bad-text transition hover:bg-bad-soft disabled:opacity-50"
             >
               Decline
             </button>

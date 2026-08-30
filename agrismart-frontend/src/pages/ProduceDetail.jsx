@@ -8,9 +8,12 @@ import AppShell, { useAppShell } from '../components/AppShell'
 import ProductCard from '../components/ProductCard'
 import { Panel } from '../components/Panel'
 import Modal from '../components/Modal'
+import Reveal from '../components/Reveal'
+import Button from '../components/Button'
 import ListingForm from '../components/ListingForm'
 import ListingPhotoManager from '../components/ListingPhotoManager'
 import { CameraIcon } from '../components/icons'
+import { inputCls } from '../lib/ui'
 
 function ProduceDetailContent() {
   const { id } = useParams()
@@ -189,9 +192,10 @@ function ProduceDetailContent() {
         </Link>
 
         <div className="grid items-start gap-6 lg:grid-cols-2">
+          <Reveal delay={0}>
           {/* Gallery */}
           <div>
-            <div className="relative aspect-[4/3] w-full overflow-hidden rounded-[18px] border border-line bg-[#fbfcfa]">
+            <div className="relative aspect-[4/3] w-full overflow-hidden rounded-[18px] border border-line bg-surface">
               {photos.length ? (
                 <img src={photos[safeActive]} alt={title} className="h-full w-full object-cover" />
               ) : (
@@ -246,6 +250,7 @@ function ProduceDetailContent() {
               />
             )}
           </div>
+          </Reveal>
 
           {/* Info */}
           <div className="space-y-4">
@@ -256,7 +261,7 @@ function ProduceDetailContent() {
               </h1>
               <p className="mt-2 font-sans text-sm text-muted">{lineSub}</p>
               {(item.details || item.gpsAddress) && (
-                <div className="mt-3 rounded-lg border border-line bg-[#fbfcfa] px-4 py-3">
+                <div className="mt-3 rounded-lg border border-line bg-surface px-4 py-3">
                   {item.details && (
                     <>
                       <span className="block font-sans text-[11px] uppercase tracking-[.06em] text-muted">Details</span>
@@ -305,13 +310,13 @@ function ProduceDetailContent() {
            
 
             {isUnverifiedOwner ? (
-              <div className="rounded-[10px] border border-amber-200 bg-amber-50 px-4 py-3 font-sans text-sm text-amber-800">
+              <div className="rounded-[10px] border border-warn/40 bg-warn-soft px-4 py-3 font-sans text-sm text-warn">
                 Verify your farmer profile before you can edit or manage this listing.
               </div>
             ) : isOwner ? (
               <>
                 {item.status === 'deactivated' ? (
-                  <span className="inline-block rounded-full bg-amber-100 px-3 py-1 font-sans text-[11px] font-bold text-amber-800">
+                  <span className="inline-block rounded-full bg-warn-soft px-3 py-1 font-sans text-[11px] font-bold text-warn">
                     Deactivated — hidden from the market
                   </span>
                 ) : (
@@ -333,7 +338,7 @@ function ProduceDetailContent() {
                     <button
                       type="button"
                       onClick={onDelete}
-                      className="rounded-[10px] border border-red-200 bg-red-50 px-5 py-3 font-sans text-sm font-bold text-red-700 transition hover:bg-red-100"
+                      className="rounded-[10px] border border-bad/40 bg-bad px-5 py-3 font-sans text-sm font-bold text-bad-text transition hover:bg-bad-soft"
                     >
                       Delete
                     </button>
@@ -372,8 +377,9 @@ function ProduceDetailContent() {
                     </button>
                   </div>
                 ) : (
-                  <button
-                    type="button"
+                  <Button
+                    variant="primary"
+                    size="lg"
                     onClick={() => {
                       if (!user?.verified) {
                         flashToast('Verify your profile to place an order.')
@@ -383,10 +389,9 @@ function ProduceDetailContent() {
                       cart.add(item, qty)
                       flashToast(`${title} added to cart`)
                     }}
-                    className="rounded-[10px] bg-leaf px-5 py-3 font-sans text-sm font-bold text-white transition hover:bg-leaf-dark sm:px-8"
                   >
                     Add {qty} to cart · GHS {((item.askingPrice || 0) * qty).toFixed(2).replace(/\.00$/, '')}
-                  </button>
+                  </Button>
                 )}
                 {!user?.verified && (
                   <p className="font-sans text-xs text-muted">
@@ -515,8 +520,10 @@ function ProduceDetailContent() {
             <h2 className="font-serif text-xl font-semibold tracking-[-.03em] text-ink">Similar produce</h2>
             <p className="mt-1 font-sans text-xs text-muted">More {title.toLowerCase()} in the market</p>
             <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              {similar.map((p) => (
-                <ProductCard key={p.id} item={p} viewOnly onView={() => navigate(`/produce/${p.id}`)} />
+              {similar.map((p, i) => (
+                <Reveal key={p.id} delay={Math.min(i, 6)}>
+                  <ProductCard item={p} viewOnly onView={() => navigate(`/produce/${p.id}`)} />
+                </Reveal>
               ))}
             </div>
           </section>
@@ -540,7 +547,7 @@ function StarRow({ value = 0, onChange, interactive = false }) {
           onMouseEnter={() => interactive && setHover(n)}
           onMouseLeave={() => interactive && setHover(0)}
           className={`text-2xl leading-none transition ${
-            n <= shown ? 'text-amber-500' : 'text-line'
+            n <= shown ? 'text-gold' : 'text-line'
           } ${interactive ? 'cursor-pointer' : 'cursor-default'}`}
         >
           ★
@@ -574,7 +581,7 @@ function ReviewForm({ listingId, initial, onSaved, flashToast }) {
     }
   }
   return (
-    <form onSubmit={submit} className="mt-4 rounded-[10px] border border-line bg-[#fbfcfa] p-4">
+    <form onSubmit={submit} className="mt-4 rounded-[10px] border border-line bg-surface p-4">
       <div className="flex items-center justify-between">
         <span className="font-sans text-[11px] font-bold uppercase tracking-[.06em] text-leaf">
           {initial ? 'Update your review' : 'Verified purchase · write a review'}
@@ -589,18 +596,14 @@ function ReviewForm({ listingId, initial, onSaved, flashToast }) {
         maxLength={500}
         rows={3}
         placeholder="How was the quality, freshness, and packaging?"
-        className="mt-2 w-full rounded-[8px] border border-line bg-white p-2.5 font-sans text-sm text-ink outline-none focus:border-leaf"
+        className={`mt-2 w-full ${inputCls}`}
       />
       <div className="mt-2 flex items-center justify-between gap-3">
         <span className="font-sans text-[11px] text-muted">{comment.length}/500</span>
-        {err && <span className="flex-1 text-right font-sans text-xs text-red-600">{err}</span>}
-        <button
-          type="submit"
-          disabled={busy}
-          className="rounded-[8px] bg-leaf px-4 py-2 font-sans text-xs font-bold text-white transition hover:bg-leaf-dark disabled:opacity-60"
-        >
+        {err && <span className="flex-1 text-right font-sans text-xs text-bad-text">{err}</span>}
+        <Button type="submit" disabled={busy} size="sm" className="px-4">
           {busy ? 'Saving…' : initial ? 'Update review' : 'Post review'}
-        </button>
+        </Button>
       </div>
     </form>
   )

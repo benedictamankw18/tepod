@@ -5,11 +5,7 @@ import OtpInput from '../components/OtpInput'
 import PasswordInput from '../components/PasswordInput'
 import { issueOtp, resetPassword } from '../lib/api'
 import { isValidGhanaPhone } from '../lib/phone'
-
-const inputCls =
-  'w-full rounded-[10px] border border-line bg-[#fbfcfa] px-3 py-2.5 font-sans text-sm text-ink outline-none focus:border-leaf focus:shadow-[0_0_0_3px_rgba(29,101,79,.12)]'
-
-const labelCls = 'mb-1 block font-sans text-[11px] uppercase tracking-[.06em] text-muted'
+import { inputCls, labelCls } from '../lib/ui'
 
 export default function ForgotPassword() {
   const navigate = useNavigate()
@@ -79,7 +75,7 @@ export default function ForgotPassword() {
   return (
     <AuthLayout title="Reset your password" subtitle="We'll text a code to your phone">
       {error && (
-        <div className="mb-4 rounded-md bg-red-50 border border-red-200 px-3 py-2 text-sm text-red-700">
+        <div className="mb-4 rounded-md bg-bad border border-bad/40 px-3 py-2 text-sm text-bad-text">
           {error}
         </div>
       )}
@@ -99,7 +95,7 @@ export default function ForgotPassword() {
               placeholder="0241234567"
               autoComplete="tel"
             />
-            {phoneError && <p className="mt-1 text-xs text-red-700">Enter a valid Ghanaian mobile number (e.g. 0241234567).</p>}
+            {phoneError && <p className="mt-1 text-xs text-bad-text">Enter a valid Ghanaian mobile number (e.g. 0241234567).</p>}
           </div>
           <div>
             <label className={labelCls}>Email (optional)</label>
@@ -115,7 +111,7 @@ export default function ForgotPassword() {
               placeholder="you@example.com"
               autoComplete="email"
             />
-            {emailError && <p className="mt-1 text-xs text-red-700">Enter a valid email address.</p>}
+            {emailError && <p className="mt-1 text-xs text-bad-text">Enter a valid email address.</p>}
           </div>
           <button
             type="submit"
@@ -148,7 +144,7 @@ export default function ForgotPassword() {
               autoComplete="new-password"
             />
             {passwordMismatch && (
-              <p className="mt-1 text-xs text-red-700">Passwords do not match.</p>
+              <p className="mt-1 text-xs text-bad-text">Passwords do not match.</p>
             )}
           </div>
           <button

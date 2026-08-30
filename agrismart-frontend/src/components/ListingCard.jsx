@@ -3,7 +3,7 @@ import CropGlyph from './CropGlyph'
 export function Tag({ children, className = '' }) {
   return (
     <span
-      className={`inline-block rounded-full bg-[#e8f0c5] px-2 py-0.5 font-sans text-[10px] font-bold text-leaf-dark ${className}`}
+      className={`inline-block rounded-full bg-lime-soft px-2 py-0.5 font-sans text-[10px] font-bold text-leaf-dark ${className}`}
     >
       {children}
     </span>
@@ -22,7 +22,7 @@ export function CropListingCard({ item, actionLabel = 'Make offer', onAction, on
 
   return (
     <article
-      className={`grid grid-cols-[58px,1fr,auto] items-center gap-3.5 rounded-2xl border border-line bg-[#fbfcfa] p-3.5 ${
+      className={`grid grid-cols-[58px,1fr,auto] items-center gap-3.5 rounded-2xl border border-line bg-surface p-3.5 ${
         onCardClick ? 'cursor-pointer transition hover:border-leaf hover:shadow-sm' : ''
       }`}
       onClick={onCardClick ? () => onCardClick(item) : undefined}
@@ -55,7 +55,7 @@ export function CropListingCard({ item, actionLabel = 'Make offer', onAction, on
               e.stopPropagation()
               onAction?.(item)
             }}
-            className="mt-1.5 rounded-[10px] bg-[#e8f0c5] px-3 py-2 font-sans text-xs font-bold text-leaf-dark transition hover:bg-lime"
+            className="mt-1.5 rounded-[10px] bg-lime-soft px-3 py-2 font-sans text-xs font-bold text-leaf-dark transition hover:bg-lime"
           >
             {actionLabel}
           </button>

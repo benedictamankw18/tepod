@@ -1,7 +1,7 @@
 import { useState } from 'react'
+import { inputCls } from '../lib/ui'
 
-const inputCls =
-  'w-full rounded-[10px] border border-line bg-[#fbfcfa] px-3 py-2.5 font-sans text-sm text-ink outline-none focus:border-leaf focus:shadow-[0_0_0_3px_rgba(29,101,79,.12)] pr-10'
+const inputClsPassword = `${inputCls} pr-10`
 
 function EyeIcon({ off }) {
   return (
@@ -47,7 +47,7 @@ export default function PasswordInput({ value, onChange, placeholder, autoComple
           placeholder={placeholder}
           autoComplete={autoComplete}
           required={required}
-          className={inputCls}
+          className={inputClsPassword}
         />
         <button
           type="button"

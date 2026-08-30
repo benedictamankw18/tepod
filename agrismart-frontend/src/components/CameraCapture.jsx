@@ -92,7 +92,7 @@ export default function CameraCapture({ value, onChange }) {
   return (
     <>
       {value ? (
-        <div className="flex items-center gap-3 rounded-[10px] border border-line bg-[#fbfcfa] px-3 py-3">
+        <div className="flex items-center gap-3 rounded-[10px] border border-line bg-surface px-3 py-3">
           <img src={previewUrl} alt="Live photo preview" className={PREVIEW} />
           <div className="min-w-0 flex-1">
             <p className="font-sans text-sm text-ink">Live photo captured</p>
@@ -106,7 +106,7 @@ export default function CameraCapture({ value, onChange }) {
         <button
           type="button"
           onClick={openCamera}
-          className="flex w-full items-center gap-3 rounded-[10px] border border-dashed border-line bg-[#fbfcfa] px-3 py-3 text-left hover:border-leaf"
+          className="flex w-full items-center gap-3 rounded-[10px] border border-dashed border-line bg-surface px-3 py-3 text-left hover:border-leaf"
         >
           <span className="flex h-14 w-14 items-center justify-center rounded-md bg-lime/30 text-2xl text-leaf">+</span>
           <span className="font-sans text-sm text-muted">Open camera to take a live photo</span>
@@ -126,7 +126,7 @@ export default function CameraCapture({ value, onChange }) {
         }}
       />
 
-      {error && <p className="mt-1.5 font-sans text-[11px] text-red-700">{error}</p>}
+      {error && <p className="mt-1.5 font-sans text-[11px] text-bad-text">{error}</p>}
 
       {open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={close}>

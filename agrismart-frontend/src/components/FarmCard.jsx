@@ -74,7 +74,7 @@ export default function FarmCard({ farm, onDetails }) {
           <button
             type="button"
             onClick={() => onDetails?.(farm)}
-            className="rounded-[10px] border border-line bg-[#fbfcfa] px-3.5 py-2 font-sans text-xs font-bold text-leaf transition hover:bg-paper hover:text-leaf-dark"
+            className="rounded-[10px] border border-line bg-surface px-3.5 py-2 font-sans text-xs font-bold text-leaf transition hover:bg-paper hover:text-leaf-dark"
           >
             Details
           </button>

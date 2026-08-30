@@ -35,7 +35,7 @@ function BannerSlide({ banner }) {
           {title}
         </h2>
         {subtitle && (
-          <p className="relative z-10 mt-2 max-w-[360px] font-sans text-xs leading-relaxed text-[#c8d9d0]">
+          <p className="relative z-10 mt-2 max-w-[360px] font-sans text-xs leading-relaxed text-fern">
             {subtitle}
           </p>
         )}

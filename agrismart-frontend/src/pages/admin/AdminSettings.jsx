@@ -111,7 +111,7 @@ export default function AdminSettings() {
       />
 
       {error && (
-        <div className="mb-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 font-sans text-sm text-red-700">{error}</div>
+        <div className="mb-4 rounded-md border border-bad/40 bg-bad px-3 py-2 font-sans text-sm text-bad-text">{error}</div>
       )}
 
       {loading ? (

@@ -8,17 +8,13 @@ import SearchableSelect from '../components/SearchableSelect'
 import { login, issueOtp, verifyOtp } from '../lib/api'
 import { setSession } from '../lib/auth'
 import { isValidGhanaPhone } from '../lib/phone'
+import { inputCls, labelCls } from '../lib/ui'
 
 const METHODS = [
   { key: 'password', label: 'Password' },
   { key: 'otp', label: 'Phone (OTP)' },
   { key: 'google', label: 'Google' },
 ]
-
-const inputCls =
-  'w-full rounded-[10px] border border-line bg-[#fbfcfa] px-3 py-2.5 font-sans text-sm text-ink outline-none focus:border-leaf focus:shadow-[0_0_0_3px_rgba(29,101,79,.12)]'
-
-const labelCls = 'mb-1 block font-sans text-[11px] uppercase tracking-[.06em] text-muted'
 
 export default function Login() {
   const navigate = useNavigate()
@@ -129,7 +125,7 @@ export default function Login() {
       </div>
 
       {error && (
-        <div className="mb-4 rounded-md bg-red-50 border border-red-200 px-3 py-2 text-sm text-red-700">
+        <div className="mb-4 rounded-md bg-bad border border-bad/40 px-3 py-2 text-sm text-bad-text">
           {error}
         </div>
       )}
@@ -186,7 +182,7 @@ export default function Login() {
                 placeholder="0241234567"
                 autoComplete="tel"
               />
-              {otpPhoneError && <p className="mt-1 text-xs text-red-700">Enter a valid Ghanaian mobile number (e.g. 0241234567).</p>}
+              {otpPhoneError && <p className="mt-1 text-xs text-bad-text">Enter a valid Ghanaian mobile number (e.g. 0241234567).</p>}
             </div>
             <div>
               <label className={labelCls}>Email (optional)</label>
@@ -202,7 +198,7 @@ export default function Login() {
                 placeholder="you@example.com"
                 autoComplete="email"
               />
-              {otpEmailError && <p className="mt-1 text-xs text-red-700">Enter a valid email address.</p>}
+              {otpEmailError && <p className="mt-1 text-xs text-bad-text">Enter a valid email address.</p>}
             </div>
             <button
               type="submit"

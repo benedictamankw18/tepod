@@ -54,7 +54,7 @@ export default function OtpInput({ length = DEFAULT_LENGTH, value = '', onChange
           onKeyDown={(e) => handleKeyDown(i, e)}
           onPaste={handlePaste}
           aria-label={`Digit ${i + 1}`}
-          className="h-12 w-12 rounded-[10px] border border-line bg-[#fbfcfa] text-center font-serif text-xl font-semibold text-ink outline-none focus:border-leaf focus:shadow-[0_0_0_3px_rgba(29,101,79,.12)]"
+          className="h-12 w-12 rounded-[10px] border border-line bg-surface text-center font-serif text-xl font-semibold text-ink outline-none focus:border-leaf focus:shadow-[0_0_0_3px_rgba(29,101,79,.12)]"
         />
       ))}
     </div>

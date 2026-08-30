@@ -77,7 +77,7 @@ export default function AdminVerifications() {
       />
 
       {error && (
-        <div className="mb-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 font-sans text-sm text-red-700">
+        <div className="mb-4 rounded-md border border-bad/40 bg-bad px-3 py-2 font-sans text-sm text-bad-text">
           {error}
         </div>
       )}
@@ -105,7 +105,7 @@ export default function AdminVerifications() {
                       {v.photoUrl ? (
                         <img src={v.photoUrl} alt="" className="h-10 w-10 rounded-lg border border-line object-cover" />
                       ) : (
-                        <span className="grid h-10 w-10 place-items-center rounded-lg bg-[#e8f0c5] font-serif text-xs font-bold text-leaf-dark">
+                        <span className="grid h-10 w-10 place-items-center rounded-lg bg-lime-soft font-serif text-xs font-bold text-leaf-dark">
                           {u.name.slice(0, 1).toUpperCase()}
                         </span>
                       )}

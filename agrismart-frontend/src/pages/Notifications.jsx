@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import AppShell from '../components/AppShell'
 import { Panel, PanelHead } from '../components/Panel'
 import Empty from '../components/Empty'
+import Reveal from '../components/Reveal'
 import { BellIcon } from '../components/icons'
 import { getMyNotifications, markNotificationsRead } from '../lib/api'
 
@@ -79,9 +80,10 @@ function NotificationsContent() {
           <Empty>No notifications yet. When something happens on your market activity, it shows up here.</Empty>
         ) : (
           <>
-            <div className="mt-3 divide-y divide-paper overflow-hidden rounded-[12px] border border-line bg-white">
-              {list.map((n) => (
-                <div key={n.id} className="flex items-start gap-3 px-4 py-3">
+            <div className="mt-3 divide-y divide-paper overflow-hidden rounded-card border border-line bg-white">
+              {list.map((n, i) => (
+                <Reveal key={n.id} delay={Math.min(i, 6)}>
+                  <div className="flex items-start gap-3 px-4 py-3">
                   <span className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-[8px] bg-paper text-leaf-dark">
                     <BellIcon />
                   </span>
@@ -97,6 +99,7 @@ function NotificationsContent() {
                     </p>
                   </div>
                 </div>
+                </Reveal>
               ))}
             </div>
             {!reachedEnd && (

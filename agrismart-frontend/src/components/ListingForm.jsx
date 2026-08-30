@@ -4,10 +4,8 @@ import { useCrops, cropKey, displayName } from '../lib/crops'
 import { Panel, PanelHead } from './Panel'
 import RegionDistrictSelects from './RegionDistrictSelects'
 import SearchableSelect from './SearchableSelect'
+import { inputCls, labelCls } from '../lib/ui'
 
-const inputCls =
-  'w-full rounded-[10px] border border-line bg-[#fbfcfa] px-3 py-2.5 font-sans text-sm text-ink outline-none focus:border-leaf focus:shadow-[0_0_0_3px_rgba(29,101,79,.12)]'
-const labelCls = 'mb-1 block font-sans text-[11px] uppercase tracking-[.06em] text-muted'
 const fieldCls = 'mb-3'
 const MAX_IMAGES = 5
 const MATURITY_OPTIONS = ['Mature / Ready', 'Partially mature', 'Unripe / Green']
@@ -183,7 +181,7 @@ export default function ListingForm({ defaultLocation = '', listing, onDone, onC
         sub={isEdit ? 'Update the details buyers see for this listing.' : 'Give buyers the details they need to commit with confidence.'}
       />
       {error && (
-        <div className="mb-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 font-sans text-sm text-red-700">
+        <div className="mb-4 rounded-md border border-bad/40 bg-bad px-3 py-2 font-sans text-sm text-bad-text">
           {error}
         </div>
       )}
@@ -313,7 +311,7 @@ export default function ListingForm({ defaultLocation = '', listing, onDone, onC
                 type="button"
                 onClick={() => fileRef.current?.click()}
                 disabled={uploading}
-                className="grid h-20 w-20 place-items-center rounded-lg border border-dashed border-line bg-[#fbfcfa] font-sans text-xs text-muted transition hover:border-leaf hover:text-leaf disabled:opacity-50"
+                className="grid h-20 w-20 place-items-center rounded-lg border border-dashed border-line bg-surface font-sans text-xs text-muted transition hover:border-leaf hover:text-leaf disabled:opacity-50"
               >
                 {uploading ? 'Uploading…' : '+ Add'}
               </button>

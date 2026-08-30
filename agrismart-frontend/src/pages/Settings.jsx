@@ -7,10 +7,9 @@ import AppShell from '../components/AppShell'
 import CropPicker from '../components/CropPicker'
 import RegionDistrictSelects from '../components/RegionDistrictSelects'
 import SearchableSelect from '../components/SearchableSelect'
+import Reveal from '../components/Reveal'
+import { inputCls, labelCls } from '../lib/ui'
 
-const inputCls =
-  'w-full rounded-[10px] border border-line bg-[#fbfcfa] px-3 py-2.5 font-sans text-sm text-ink outline-none focus:border-leaf focus:shadow-[0_0_0_3px_rgba(29,101,79,.12)]'
-const labelCls = 'mb-1 block font-sans text-[11px] uppercase tracking-[.06em] text-muted'
 const fieldCls = 'mb-3'
 
 const LANGS = [
@@ -269,7 +268,8 @@ function SettingsContent() {
         </header>
 
         {/* Profile photo */}
-        <section className="mb-5 rounded-2xl border border-line bg-white p-5 shadow-sm">
+        <Reveal delay={0}>
+        <section className="mb-5 rounded-card border border-line bg-white p-5 shadow">
           <h2 className="mb-3 font-serif text-lg font-semibold tracking-[-.03em] text-ink">Profile photo</h2>
           <div className="flex items-center gap-4">
             {photo ? (
@@ -291,8 +291,9 @@ function SettingsContent() {
               </button>
             </div>
           </div>
-          {photoError && <p className="mt-2 font-sans text-xs text-red-600">{photoError}</p>}
+          {photoError && <p className="mt-2 font-sans text-xs text-bad-text">{photoError}</p>}
         </section>
+        </Reveal>
 
         {/* Verification */}
         <section className="mb-5 rounded-2xl border border-line bg-white p-5 shadow-sm">
@@ -320,12 +321,13 @@ function SettingsContent() {
         </section>
 
         {error && (
-          <div className="mb-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 font-sans text-sm text-red-700">
+          <div className="mb-4 rounded-md border border-bad/40 bg-bad px-3 py-2 font-sans text-sm text-bad-text">
             {error}
           </div>
         )}
 
         {/* Profile info + role-specific */}
+        <Reveal delay={1}>
         <section className="mb-5 rounded-2xl border border-line bg-white p-5 shadow-sm">
           <h2 className="mb-3 font-serif text-lg font-semibold tracking-[-.03em] text-ink">Profile info</h2>
           <form onSubmit={saveProfile}>
@@ -420,6 +422,7 @@ function SettingsContent() {
             </div>
           </form>
         </section>
+        </Reveal>
 
         {/* Escrow payout account (farmers) */}
         {user?.role === 'farmer' && (
@@ -480,7 +483,7 @@ function SettingsContent() {
                 </div>
               )}
 
-              {payoutError && <p className="mb-3 font-sans text-xs text-red-600">{payoutError}</p>}
+              {payoutError && <p className="mb-3 font-sans text-xs text-bad-text">{payoutError}</p>}
               <div className="flex items-center justify-end gap-3">
                 {payoutSaved && <span className="font-sans text-xs font-semibold text-leaf">Saved ✓</span>}
                 <button
@@ -566,7 +569,7 @@ function SettingsContent() {
                 />
               </div>
             </div>
-            {contactError && <p className="mb-3 font-sans text-xs text-red-600">{contactError}</p>}
+            {contactError && <p className="mb-3 font-sans text-xs text-bad-text">{contactError}</p>}
             <div className="flex items-center justify-end gap-3">
               {contactSaved && <span className="font-sans text-xs font-semibold text-leaf">Saved ✓</span>}
               <button
@@ -598,7 +601,7 @@ function SettingsContent() {
                 <input className={inputCls} type="password" value={pw.confirm} onChange={(e) => setPw((p) => ({ ...p, confirm: e.target.value }))} />
               </div>
             </div>
-            {pwError && <p className="mb-3 font-sans text-xs text-red-600">{pwError}</p>}
+            {pwError && <p className="mb-3 font-sans text-xs text-bad-text">{pwError}</p>}
             <div className="flex justify-end">
               <button
                 type="submit"
@@ -616,7 +619,7 @@ function SettingsContent() {
 
 export default function SettingsPage() {
   return (
-    <AppShell activeId="settings" hideCartFloating>
+    <AppShell activeId="settings">
       <SettingsContent />
     </AppShell>
   )

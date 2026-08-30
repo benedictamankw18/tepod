@@ -122,7 +122,7 @@ export default function GoogleButton({ role, buyerType, onSuccess, onError, text
 
   if (status === 'error') {
     return (
-      <p className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-md p-2 text-center">
+      <p className="text-sm text-bad-text bg-bad border border-bad/40 rounded-md p-2 text-center">
         Could not load Google sign-in. Check your connection or ad-blocker.
       </p>
     )

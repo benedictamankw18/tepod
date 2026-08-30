@@ -102,7 +102,7 @@ function CommitmentCard({ c, onRespond, onFulfill, busy }) {
   }
 
   return (
-    <div className="rounded-[13px] border border-line bg-[#fbfcfa] p-3.5">
+    <div className="rounded-[13px] border border-line bg-surface p-3.5">
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <strong className="block truncate font-serif text-[15px] font-semibold capitalize text-ink">
@@ -151,7 +151,7 @@ function CommitmentCard({ c, onRespond, onFulfill, busy }) {
               type="button"
               disabled={busy}
               onClick={() => onRespond(c, 'reject')}
-              className="flex-1 rounded-[8px] border border-red-200 bg-red-50 px-2 py-1.5 font-sans text-xs font-bold text-red-700 transition hover:bg-red-100 disabled:opacity-50"
+              className="flex-1 rounded-[8px] border border-bad/40 bg-bad px-2 py-1.5 font-sans text-xs font-bold text-bad-text transition hover:bg-bad-soft disabled:opacity-50"
             >
               Decline
             </button>

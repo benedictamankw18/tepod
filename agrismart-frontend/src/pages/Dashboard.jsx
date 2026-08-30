@@ -5,6 +5,7 @@ import StatCard from '../components/StatCard'
 import { Panel } from '../components/Panel'
 import PriceSignal from '../components/PriceSignal'
 import Empty from '../components/Empty'
+import Reveal from '../components/Reveal'
 import { getMyFarms, getFarmerCommitments, getReceivedReviews } from '../lib/api'
 import { primaryCropFor, useCurrentPrice } from '../lib/app'
 
@@ -98,7 +99,7 @@ function DashboardContent() {
       )}
 
       {error && (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 font-sans text-sm text-red-700">
+        <div className="rounded-lg border border-bad/40 bg-bad px-3 py-2 font-sans text-sm text-bad-text">
           {error}
         </div>
       )}
@@ -108,10 +109,16 @@ function DashboardContent() {
           {isFarmer ? (
             <>
               <section className="grid grid-cols-2 gap-3 lg:grid-cols-4" aria-label="Your summary">
-                <StatCard label="Open listings" value={ownOpenCount} note="in the market now" />
-                <StatCard label="Offers received" value={offers} note="waiting for a response" />
-                <StatCard label="Market price" value={avgPrice} note={`${primaryCropFor(user)} / unit`} />
-                <StatCard label="Your farms" value={farmCount == null ? '…' : farmCount} note="pre and post harvest" />
+                {[
+                  <StatCard key="open" label="Open listings" value={ownOpenCount} note="in the market now" />,
+                  <StatCard key="offers" label="Offers received" value={offers} note="waiting for a response" />,
+                  <StatCard key="price" label="Market price" value={avgPrice} note={`${primaryCropFor(user)} / unit`} />,
+                  <StatCard key="farms" label="Your farms" value={farmCount == null ? '…' : farmCount} note="pre and post harvest" />,
+                ].map((card, i) => (
+                  <Reveal key={card.key} delay={0.08 + i * 0.07}>
+                    {card}
+                  </Reveal>
+                ))}
               </section>
 
               <div className="grid gap-3 sm:grid-cols-2">
@@ -174,7 +181,7 @@ function DashboardContent() {
                 </Panel>
               )}
 
-              <div className="rounded-[10px] border border-line bg-[#fbfcfa] px-4 py-3.5">
+              <div className="rounded-[10px] border border-line bg-surface px-4 py-3.5">
                 <Empty>Your order history and saved favourites live on the Market place page.</Empty>
               </div>
             </div>
@@ -191,7 +198,7 @@ function DashboardContent() {
             <button
               type="button"
               onClick={requestSupport}
-              className="rounded-[10px] bg-[#e8f0c5] px-4 py-2.5 font-sans text-xs font-bold text-leaf-dark transition hover:bg-lime"
+              className="rounded-[10px] bg-lime-soft px-4 py-2.5 font-sans text-xs font-bold text-leaf-dark transition hover:bg-lime"
             >
               Request support
             </button>
@@ -214,9 +221,9 @@ function FarmerReviews({ reviews }) {
             {reviews.length} verified customer{reviews.length === 1 ? '' : 's'} have reviewed you
           </p>
         </div>
-        <div className="shrink-0 rounded-xl bg-[#f2f0ea] px-4 py-2 text-center">
+        <div className="shrink-0 rounded-xl bg-thumb px-4 py-2 text-center">
           <span className="block font-serif text-2xl font-semibold leading-none text-ink">{avg.toFixed(1)}</span>
-          <span className="mt-1 block text-sm leading-none text-amber-500" aria-label="Average rating">
+          <span className="mt-1 block text-sm leading-none text-gold" aria-label="Average rating">
             {'★'.repeat(Math.round(avg))}
             <span className="text-line">{'★'.repeat(5 - Math.round(avg))}</span>
           </span>
@@ -229,7 +236,7 @@ function FarmerReviews({ reviews }) {
               <span className="truncate font-sans text-sm font-bold capitalize text-ink">
                 {r.cropType || 'Produce'}
               </span>
-              <span className="shrink-0 text-[13px] leading-none text-amber-500" aria-label={`${r.rating} stars`}>
+              <span className="shrink-0 text-[13px] leading-none text-gold" aria-label={`${r.rating} stars`}>
                 {'★'.repeat(r.rating)}
                 <span className="text-line">{'★'.repeat(5 - r.rating)}</span>
               </span>

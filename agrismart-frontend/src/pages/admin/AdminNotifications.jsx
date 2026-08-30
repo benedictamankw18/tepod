@@ -144,14 +144,14 @@ export default function AdminNotifications() {
       />
 
       {error && (
-        <div className="mb-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 font-sans text-sm text-red-700">
+        <div className="mb-4 rounded-md border border-bad/40 bg-bad px-3 py-2 font-sans text-sm text-bad-text">
           {error}
         </div>
       )}
 
       <Modal open={sendOpen} onClose={closeSend} title="Send notification" maxWidth="max-w-lg">
         {error && (
-          <div className="mb-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 font-sans text-sm text-red-700">
+          <div className="mb-4 rounded-md border border-bad/40 bg-bad px-3 py-2 font-sans text-sm text-bad-text">
             {error}
           </div>
         )}
@@ -165,7 +165,7 @@ export default function AdminNotifications() {
                   type="button"
                   onClick={() => setForm((f) => ({ ...f, audience: a.id }))}
                   className={`flex-1 rounded-[10px] border px-3 py-2 font-sans text-sm font-semibold capitalize transition ${
-                    form.audience === a.id ? 'border-leaf bg-leaf text-white' : 'border-line bg-[#fbfcfa] text-muted hover:border-leaf hover:text-leaf'
+                    form.audience === a.id ? 'border-leaf bg-leaf text-white' : 'border-line bg-surface text-muted hover:border-leaf hover:text-leaf'
                   }`}
                 >
                   {a.label}
@@ -186,7 +186,7 @@ export default function AdminNotifications() {
                 <label
                   key={c.id}
                   className={`flex cursor-pointer items-center gap-2 rounded-[10px] border px-3 py-2.5 transition ${
-                    form.channels.includes(c.id) ? 'border-leaf bg-[#eef5f0]' : 'border-line bg-[#fbfcfa] hover:border-leaf'
+                    form.channels.includes(c.id) ? 'border-leaf bg-ok-soft' : 'border-line bg-surface hover:border-leaf'
                   }`}
                 >
                   <input
