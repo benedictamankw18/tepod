@@ -3,7 +3,11 @@ const transactionsRepo = require("../repositories/transactions");
 const usersRepo = require("../repositories/users");
 const listingsRepo = require("../repositories/listings");
 const notificationsRepo = require("../repositories/notifications");
-const { requireAuth } = require("../middleware/auth");
+const settingsRepo = require("../repositories/systemSettings");
+const precommitmentsRepo = require("../repositories/precommitments");
+const { computeCommission } = require("../services/commission");
+const precommitmentsService = require("../services/precommitments");
+const { requireAuth, requireRole } = require("../middleware/auth");
 
 const router = express.Router();
 
@@ -115,17 +119,27 @@ router.post("/", requireAuth, async (req, res) => {
   if (req.user.id !== listing.farmerId && req.user.role !== "admin") {
     return res.status(403).json({ error: "only the listing farmer can confirm a sale" });
   }
+  // A pre-commitment acceptance already opened this record; stay idempotent.
+  const existing = await transactionsRepo.getByListingAndBuyer(listingId, buyerId);
+  if (existing) return res.status(200).json(existing);
+
+  const commission = await settingsRepo.getCommission();
+  const { commission: commissionAmount, net: netAmount } = computeCommission(commission, price);
   const tx = await transactionsRepo.createTransaction({
     listingId, buyerId, farmerId: listing.farmerId, agreedPrice: price,
+    commissionAmount, netAmount,
     dueDate: dueDate || new Date(Date.now() + 14 * 864e5),
   });
   const buyer = await usersRepo.getUser(buyerId);
-  await notificationsRepo.logNotification({
-    toPhone: buyer.phone,
-    channel: "sms",
+  const farmer = await usersRepo.getUser(listing.farmerId);
+  await notificationsRepo.notify({
+    userId: buyer.id,
+    phone: buyer.phone,
+    email: buyer.email,
+    title: "Sale confirmed",
     messageKey: "sale_confirmed",
     language: buyer.language,
-    params: { cropType: listing.cropType, price, dueDate: tx.dueDate },
+    params: { cropType: listing.cropType, price, dueDate: tx.dueDate, farmerName: farmer?.name || null },
   });
   res.status(201).json(tx);
 });
@@ -135,17 +149,32 @@ router.get("/user/:userId", requireAuth, async (req, res) => {
   res.json(await transactionsRepo.transactionsForUser(req.params.userId));
 });
 
+// GET /api/transactions/mine - the signed-in buyer's own purchases, enriched for
+// the "My purchases" list (child of the marketplace). Buyer-only.
+router.get("/mine", requireAuth, async (req, res) => {
+  if (req.user.role === "farmer") return res.status(403).json({ error: "farmer accounts have no purchases" });
+  res.json(await transactionsRepo.purchasesForBuyer(req.user.id));
+});
+
 router.get("/overdue", requireAuth, async (_req, res) => {
   res.json(await transactionsRepo.overdueTransactions());
+});
+
+// GET /api/transactions/all - every transaction across all users (admin), with
+// optional paymentStatus filter.
+router.get("/all", requireAuth, requireRole("admin"), async (req, res) => {
+  res.json(await transactionsRepo.listAllTransactions({ paymentStatus: req.query.paymentStatus }));
 });
 
 router.post("/reminders/run", requireAuth, async (_req, res) => {
   const overdue = await transactionsRepo.refreshOverdue();
   for (const tx of overdue) {
     const buyer = await usersRepo.getUser(tx.buyerId);
-    await notificationsRepo.logNotification({
-      toPhone: buyer.phone,
-      channel: "sms",
+    await notificationsRepo.notify({
+      userId: buyer.id,
+      phone: buyer.phone,
+      email: buyer.email,
+      title: "Payment reminder",
       messageKey: "payment_reminder",
       language: buyer.language,
       params: { price: tx.agreedPrice, dueDate: tx.dueDate },
@@ -198,6 +227,47 @@ router.get("/:id", requireAuth, async (req, res) => {
  *         name: id
  *         required: true
  *         schema: { type: string, format: uuid }
+ *     requestBody:
+ *       required: false
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               amount:
+ *                 type: number
+ *                 description: Partial payment toward the balance (omitted = full payment)
+ *     responses:
+ *       200:
+ *         description: Updated transaction
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Transaction'
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ *       404:
+ *         $ref: '#/components/responses/NotFound'
+ * /api/transactions/{id}/deposit:
+ *   post:
+ *     tags: [Transactions]
+ *     summary: Record a deposit against an accepted pre-commitment
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string, format: uuid }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [amount]
+ *             properties:
+ *               amount: { type: number, minimum: 0 }
  *     responses:
  *       200:
  *         description: Updated transaction
@@ -232,18 +302,62 @@ router.get("/:id", requireAuth, async (req, res) => {
  *       404:
  *         $ref: '#/components/responses/NotFound'
  */
-// POST /api/transactions/:id/pay - mark paid (MVP manual; real MoMo is Phase 3)
+// POST /api/transactions/:id/pay - mark paid / partially pay (MVP manual; real MoMo is Phase 3)
 router.post("/:id/pay", requireAuth, async (req, res) => {
-  const tx = await transactionsRepo.markTransactionPaid(req.params.id);
+  const { amount } = req.body || {};
+  if (amount != null && (!Number.isFinite(Number(amount)) || Number(amount) <= 0)) {
+    return res.status(400).json({ error: "amount must be a positive number" });
+  }
+  const tx = await transactionsRepo.recordPayment(req.params.id, {
+    kind: "payment",
+    amount: amount == null ? null : Number(amount),
+  });
   if (!tx) return res.status(404).json({ error: "transaction not found" });
   const farmer = await usersRepo.getUser(tx.farmerId);
-  await notificationsRepo.logNotification({
-    toPhone: farmer.phone,
-    channel: "sms",
-    messageKey: "payment_received",
+  // Paying in full: notify the farmer on every channel we can reach them on.
+  if (tx.paymentStatus === "paid") {
+    await notificationsRepo.notify({
+      userId: farmer.id,
+      phone: farmer.phone,
+      email: farmer.email,
+      title: "Payment received",
+      messageKey: "payment_received",
+      language: farmer.language,
+      params: { price: tx.agreedPrice },
+    });
+  }
+  // Completing payment on an already-delivered commitment closes the sale.
+  if (tx.paymentStatus === "paid") {
+    const pc = await precommitmentsRepo.getPreCommitmentByTransactionId(tx.id);
+    await precommitmentsService.attemptComplete(pc, tx);
+  }
+  res.json(tx);
+});
+
+// POST /api/transactions/:id/deposit - put money down on an accepted commitment.
+router.post("/:id/deposit", requireAuth, async (req, res) => {
+  const { amount } = req.body || {};
+  const a = Number(amount);
+  if (!Number.isFinite(a) || a <= 0) return res.status(400).json({ error: "amount must be a positive number" });
+  const tx = await transactionsRepo.recordPayment(req.params.id, { kind: "deposit", amount: a });
+  if (!tx) return res.status(404).json({ error: "transaction not found" });
+
+  const farmer = await usersRepo.getUser(tx.farmerId);
+  const buyer = await usersRepo.getUser(tx.buyerId);
+  await notificationsRepo.notify({
+    userId: farmer.id,
+    phone: farmer.phone,
+    email: farmer.email,
+    title: "Deposit received",
+    messageKey: "deposit_received",
     language: farmer.language,
-    params: { price: tx.agreedPrice },
+    params: { buyerName: buyer.name, amount: a, cropType: (await listingsRepo.getListing(tx.listingId)).cropType },
   });
+
+  if (tx.paymentStatus === "paid") {
+    const pc = await precommitmentsRepo.getPreCommitmentByTransactionId(tx.id);
+    await precommitmentsService.attemptComplete(pc, tx);
+  }
   res.json(tx);
 });
 

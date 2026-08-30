@@ -5,8 +5,15 @@ import StatCard from '../components/StatCard'
 import { Panel } from '../components/Panel'
 import PriceSignal from '../components/PriceSignal'
 import Empty from '../components/Empty'
-import { getMyFarms, getFarmerCommitments } from '../lib/api'
+import { getMyFarms, getFarmerCommitments, getReceivedReviews } from '../lib/api'
 import { primaryCropFor, useCurrentPrice } from '../lib/app'
+
+function greetingFor(date = new Date()) {
+  const h = date.getHours()
+  if (h < 12) return 'Good morning'
+  if (h < 17) return 'Good afternoon'
+  return 'Good evening'
+}
 
 function DashboardContent() {
   const { user, isFarmer, isAdmin, isBuyer, market, refreshMarket, flashToast } = useAppShell()
@@ -14,16 +21,18 @@ function DashboardContent() {
   const price = useCurrentPrice(primaryCropFor(user))
   const [farms, setFarms] = useState(null)
   const [commitments, setCommitments] = useState(null)
+  const [reviews, setReviews] = useState([])
   const [error, setError] = useState('')
 
   useEffect(() => {
     if (!isFarmer) return
     let alive = true
-    Promise.all([getMyFarms(), getFarmerCommitments(user.id)])
-      .then(([f, c]) => {
+    Promise.all([getMyFarms(), getFarmerCommitments(user.id), getReceivedReviews()])
+      .then(([f, c, rv]) => {
         if (!alive) return
         setFarms(f)
         setCommitments(c)
+        setReviews(Array.isArray(rv) ? rv : [])
       })
       .catch((e) => alive && setError(e.message))
     return () => {
@@ -51,7 +60,7 @@ function DashboardContent() {
               {user?.location ? `${user.location} · ` : ''}Pilot workspace
             </span>
             <h1 className="mt-2 font-serif text-[clamp(30px,4.2vw,46px)] font-semibold leading-none tracking-[-.05em] text-ink">
-              Good morning, {firstName}.
+              {greetingFor()}, {firstName}.
             </h1>
             <p className="mt-2 max-w-[580px] font-sans text-sm leading-relaxed text-muted">
               {isFarmer
@@ -111,12 +120,31 @@ function DashboardContent() {
                 <QuickLink to="/farms" title="My farms" sub="Manage pre and post-harvest farms." />
                 <QuickLink to="/prices" title="Price guide" sub="See the latest market signals." />
               </div>
+
+              {!user?.verified && (
+                <Panel className="border-leaf/40">
+                  <h2 className="font-serif text-[23px] font-semibold tracking-[-.04em] text-ink">
+                    Finish setting up your account
+                  </h2>
+                  <p className="mt-1 font-sans text-sm text-muted">
+                    Verify your farmer profile before you can list produce or manage farms.
+                  </p>
+                  <Link
+                    to="/verify"
+                    className="mt-4 inline-block rounded-[10px] bg-leaf px-4 py-2.5 font-sans text-sm font-bold text-white transition hover:bg-leaf-dark"
+                  >
+                    Verify my profile
+                  </Link>
+                </Panel>
+              )}
+
+              {reviews.length > 0 && <FarmerReviews reviews={reviews} />}
             </>
           ) : (
             <div className="space-y-5">
               <Panel>
                 <h2 className="font-serif text-[23px] font-semibold tracking-[-.04em] text-ink">
-                  Good morning, {firstName}.
+                  {greetingFor()}, {firstName}.
                 </h2>
                 <p className="mt-1 font-sans text-sm text-muted">
                   Discover fresh produce from nearby growers and lock in your order.
@@ -132,10 +160,10 @@ function DashboardContent() {
               {!user?.verified && (
                 <Panel className="border-leaf/40">
                   <h2 className="font-serif text-[23px] font-semibold tracking-[-.04em] text-ink">
-                    Finish setting up your buyer account
+                    Finish setting up your account
                   </h2>
                   <p className="mt-1 font-sans text-sm text-muted">
-                    Verify your buyer profile before you can place an order.
+                    Verify your account before you can trade, list produce, or manage farms.
                   </p>
                   <Link
                     to="/verify"
@@ -171,6 +199,49 @@ function DashboardContent() {
         </div>
       </div>
     </div>
+  )
+}
+
+function FarmerReviews({ reviews }) {
+  const avg = reviews.reduce((s, r) => s + r.rating, 0) / reviews.length
+  const recent = reviews.slice(0, 3)
+  return (
+    <Panel className="mt-5">
+      <div className="flex items-center justify-between gap-4">
+        <div>
+          <h2 className="font-serif text-[19px] font-semibold tracking-[-.04em] text-ink">Customer reviews</h2>
+          <p className="mt-0.5 font-sans text-xs text-muted">
+            {reviews.length} verified review{reviews.length === 1 ? '' : 's'} across your listings
+          </p>
+        </div>
+        <div className="shrink-0 rounded-xl bg-[#f2f0ea] px-4 py-2 text-center">
+          <span className="block font-serif text-2xl font-semibold leading-none text-ink">{avg.toFixed(1)}</span>
+          <span className="mt-1 block text-sm leading-none text-amber-500" aria-label="Average rating">
+            {'★'.repeat(Math.round(avg))}
+            <span className="text-line">{'★'.repeat(5 - Math.round(avg))}</span>
+          </span>
+        </div>
+      </div>
+      <ul className="mt-4 space-y-3">
+        {recent.map((r) => (
+          <li key={r.id} className="rounded-lg border border-line bg-white p-3">
+            <div className="flex items-center justify-between gap-2">
+              <span className="truncate font-sans text-sm font-bold capitalize text-ink">
+                {r.cropType || 'Produce'}
+              </span>
+              <span className="shrink-0 text-[13px] leading-none text-amber-500" aria-label={`${r.rating} stars`}>
+                {'★'.repeat(r.rating)}
+                <span className="text-line">{'★'.repeat(5 - r.rating)}</span>
+              </span>
+            </div>
+            {r.comment && <p className="mt-1.5 line-clamp-2 font-sans text-[13px] leading-relaxed text-ink/80">{r.comment}</p>}
+            <span className="mt-1.5 block font-sans text-[11px] text-muted">
+              {r.buyerName || 'Verified buyer'} · {new Date(r.createdAt).toLocaleDateString()}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </Panel>
   )
 }
 

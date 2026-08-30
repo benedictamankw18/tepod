@@ -28,10 +28,10 @@ const router = express.Router();
  *         schema: { type: string, format: uuid }
  *         description: Listing id to exclude from the results (the listing currently being viewed)
  *     description: >
- *       Returns open listings for the signed-in buyer, with those whose crop_type
- *       matches the buyer's purchase_crops first, then by haversine distance to the
- *       buyer's (or supplied) coordinates. Optionally filtered to a single cropType
- *       and/or excluding one listing id.
+ *       Returns open and pre_committed listings for the signed-in buyer, with those whose
+ *       crop_type matches the buyer's purchase_crops first, then by haversine distance to the
+ *       buyer's (or supplied) coordinates. Optionally filtered to a single cropType and/or
+ *       excluding one listing id.
  *     responses:
  *       200:
  *         description: Array of produce with distance + preference match
@@ -47,6 +47,7 @@ router.get("/", requireAuth, async (req, res) => {
     nearLng,
     cropType: req.query.cropType,
     excludeId: req.query.exclude,
+    buyerId: req.user.id,
   });
   res.json(feed);
 });
@@ -56,7 +57,7 @@ router.get("/", requireAuth, async (req, res) => {
  * /api/produce/{id}:
  *   get:
  *     tags: [Produce]
- *     summary: Get a single open produce listing with full info (enriched)
+ *     summary: Get a single open or pre_committed produce listing with full info (enriched)
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -99,6 +100,7 @@ router.get("/:id", requireAuth, async (req, res) => {
     purchaseCrops: req.user.purchaseCrops,
     nearLat,
     nearLng,
+    buyerId: req.user.id,
   });
   if (!item) return res.status(404).json({ error: "produce not found" });
   res.json(item);

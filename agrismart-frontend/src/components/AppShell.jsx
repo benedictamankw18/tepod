@@ -17,7 +17,7 @@ export function useAppShell() {
 // Shared authenticated layout: role-aware sidebar navigation, a server-backed
 // cart + drawer, toast notifications, and the shared market feed. Individual
 // pages render inside <main> and read shared state via useAppShell().
-export default function AppShell({ activeId, children }) {
+export default function AppShell({ activeId, children, hideCartFloating = false }) {
   const user = getUser()
   const isFarmer = user?.role === 'farmer'
   const isAdmin = user?.role === 'admin'
@@ -53,7 +53,7 @@ export default function AppShell({ activeId, children }) {
     requestAnimationFrame(() => setToast(msg))
   }, [])
 
-  const links = navLinks({ isBuyerAccount, isFarmer })
+  const links = navLinks({ isBuyerAccount, isFarmer, isAdmin })
 
   const value = {
     user,
@@ -87,7 +87,7 @@ export default function AppShell({ activeId, children }) {
           {children}
         </main>
 
-        {canHoldCart && (
+        {canHoldCart && !hideCartFloating && (
           <CartDrawer
             open={cartOpen}
             onClose={() => setCartOpen(false)}
@@ -106,7 +106,7 @@ export default function AppShell({ activeId, children }) {
           />
         )}
 
-        {isBuyerAccount && (
+        {isBuyerAccount && !hideCartFloating && (
           <button
             type="button"
             onClick={() => {

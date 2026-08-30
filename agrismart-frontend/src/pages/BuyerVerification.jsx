@@ -4,8 +4,12 @@ import { getUser, updateUser } from '../lib/auth'
 import { verifyBuyer, uploadImage } from '../lib/api'
 import { useCrops } from '../lib/crops'
 import Sidebar from '../components/Sidebar'
+import HorizontalNav from '../components/HorizontalNav'
 import CropPicker from '../components/CropPicker'
 import SearchableSelect from '../components/SearchableSelect'
+import RegionDistrictSelects from '../components/RegionDistrictSelects'
+import CameraCapture from '../components/CameraCapture'
+import AgreementCheckbox from '../components/AgreementCheckbox'
 
 const inputCls =
   'w-full rounded-[10px] border border-line bg-[#fbfcfa] px-3 py-2.5 font-sans text-sm text-ink outline-none focus:border-leaf focus:shadow-[0_0_0_3px_rgba(29,101,79,.12)]'
@@ -23,7 +27,7 @@ export default function BuyerVerification() {
   const { crops } = useCrops()
 
   const [form, setForm] = useState({
-    purchaseCrops: [],
+    purchaseCrops: user?.purchaseCrops || [],
     community: '',
     region: '',
     district: '',
@@ -33,18 +37,44 @@ export default function BuyerVerification() {
     idNumber: '',
   })
   const [photo, setPhoto] = useState(null)
-  const [photoPreview, setPhotoPreview] = useState('')
+  const [coords, setCoords] = useState({ lat: '', lng: '' })
+  const [detecting, setDetecting] = useState(false)
+  const [locError, setLocError] = useState('')
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
-
+  const [agreed, setAgreed] = useState(false)
+  const isFarmer = user?.role === 'farmer'
   const set = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }))
   const setValue = (key) => (value) => setForm((f) => ({ ...f, [key]: value }))
 
-  const onPhoto = (e) => {
-    const file = e.target.files && e.target.files[0]
-    if (!file) return
-    setPhoto(file)
-    setPhotoPreview(URL.createObjectURL(file))
+  const captureLocation = () => {
+    if (!window.confirm("Use your device's current location to confirm where you are now?")) return
+    if (!navigator.geolocation) {
+      setLocError("Location detection isn't supported on this device.")
+      return
+    }
+    setLocError('')
+    setDetecting(true)
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setCoords({
+          lat: pos.coords.latitude.toFixed(6),
+          lng: pos.coords.longitude.toFixed(6),
+        })
+        setDetecting(false)
+      },
+      (err) => {
+        setDetecting(false)
+        const msg =
+          err.code === err.PERMISSION_DENIED
+            ? "Location access was denied. Enable it in your browser or you can still finish using your community and GPS address."
+            : err.code === err.TIMEOUT
+              ? "Timed out getting your location. Try again or you can still finish using your community and GPS address."
+              : "Your location is unavailable right now. Try again or you can still finish using your community and GPS address."
+        setLocError(msg)
+      },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 },
+    )
   }
 
   const submit = async (e) => {
@@ -58,6 +88,14 @@ export default function BuyerVerification() {
       setError('A live photo is required for verification.')
       return
     }
+    if (!agreed) {
+      setError('You must agree to the Terms of Service and Privacy Policy to continue.')
+      return
+    }
+    if (!form.gpsAddress.trim()) {
+      setError('GPS address is required.')
+      return
+    }
     setBusy(true)
     try {
       const up = await uploadImage(photo)
@@ -68,9 +106,12 @@ export default function BuyerVerification() {
         district: form.district || undefined,
         gpsAddress: form.gpsAddress || undefined,
         address: form.address || undefined,
+        lat: coords.lat === '' ? undefined : Number(coords.lat),
+        lng: coords.lng === '' ? undefined : Number(coords.lng),
         idType: form.idType,
         idNumber: form.idNumber.trim(),
         photoUrl: up.url,
+        acceptedTerms: true,
       })
       const freshUser = { ...user, ...result.user }
       updateUser(freshUser)
@@ -83,19 +124,26 @@ export default function BuyerVerification() {
   }
 
   return (
-    <div className="flex min-h-screen bg-paper">
-      <Sidebar user={user} />
+    <div className={isFarmer ? "flex min-h-screen bg-paper" : "min-h-screen bg-paper"}>
+      {isFarmer ? (
+        <Sidebar user={user} activeId="" />
 
+      ) : (
+        <HorizontalNav user={user} />
+
+      )}
       <main className="mx-auto w-full max-w-2xl flex-1 px-4 py-6 md:py-8">
         <header className="mb-6">
           <span className="font-sans text-[11px] font-bold uppercase tracking-[.15em] text-leaf">
-            Buyer on-boarding
+            Account verification
           </span>
           <h1 className="mt-1 font-serif text-3xl font-semibold tracking-[-.04em] text-ink">
-            Verify your buyer profile
+            Verify your account
           </h1>
           <p className="mt-1.5 font-sans text-sm text-muted">
-            You must be verified before you can request or commit to produce.
+            {isFarmer
+              ? 'You must be verified before you can list produce or manage farms.'
+              : 'You must be verified before you can request or commit to produce.'}
           </p>
         </header>
 
@@ -107,15 +155,17 @@ export default function BuyerVerification() {
           )}
 
           <form onSubmit={submit} className="space-y-5">
-            <div>
-              <label className={labelCls}>What are you interested in buying?</label>
-              <CropPicker
-                crops={crops}
-                selected={form.purchaseCrops}
-                onChange={(list) => setForm((f) => ({ ...f, purchaseCrops: list }))}
-                placeholder="e.g. Tiger nuts"
-              />
-            </div>
+            {!isFarmer && (
+              <div>
+                <label className={labelCls}>What are you interested in buying?</label>
+                <CropPicker
+                  crops={crops}
+                  selected={form.purchaseCrops}
+                  onChange={(list) => setForm((f) => ({ ...f, purchaseCrops: list }))}
+                  placeholder="e.g. Tiger nuts"
+                />
+              </div>
+            )}
 
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
@@ -123,17 +173,57 @@ export default function BuyerVerification() {
                 <input className={inputCls} value={form.community} onChange={set('community')} placeholder="e.g. Teso" />
               </div>
               <div>
-                <label className={labelCls}>Region</label>
-                <input className={inputCls} value={form.region} onChange={set('region')} placeholder="e.g. Central Region" />
+                <label className={labelCls}>GPS Address</label>
+                <input
+                  className={inputCls}
+                  value={form.gpsAddress}
+                  onChange={set('gpsAddress')}
+                  placeholder="e.g. GA-123-4567"
+                  required
+                />
               </div>
-              <div>
-                <label className={labelCls}>District</label>
-                <input className={inputCls} value={form.district} onChange={set('district')} placeholder="e.g. Awutu Senya East" />
-              </div>
-              <div>
-                <label className={labelCls}>GPS Address (optional)</label>
-                <input className={inputCls} value={form.gpsAddress} onChange={set('gpsAddress')} placeholder="e.g. GA-123-4567" />
-              </div>
+              <RegionDistrictSelects
+                region={form.region}
+                district={form.district}
+                onRegion={setValue('region')}
+                onDistrict={setValue('district')}
+                regionLabel="Region"
+                districtLabel="District"
+              />
+            </div>
+
+            <div className="rounded-[12px] border border-line bg-paper p-4">
+              <label className={labelCls}>Your current location<span className="normal-case text-muted"> (optional)</span></label>
+              {coords.lat ? (
+                <div className="flex items-center justify-between gap-3">
+                  <p className="font-sans text-sm text-ink">
+                    Live location captured: <span className="font-semibold text-leaf">{coords.lat}, {coords.lng}</span>
+                  </p>
+                  <button
+                    type="button"
+                    onClick={captureLocation}
+                    className="shrink-0 rounded-full border border-leaf bg-white px-3 py-1.5 font-sans text-xs font-bold text-leaf transition hover:bg-lime"
+                  >
+                    Recapture
+                  </button>
+                </div>
+              ) : detecting ? (
+                <p className="font-sans text-sm text-muted">Detecting your location…</p>
+              ) : (
+                <button
+                  type="button"
+                  onClick={captureLocation}
+                  className="rounded-full border border-leaf bg-white px-3 py-1.5 font-sans text-sm font-bold text-leaf transition hover:bg-lime"
+                >
+                  Use my device location
+                </button>
+              )}
+              {(locError || !coords.lat) && !detecting && (
+                <p className="mt-2 font-sans text-xs text-muted">
+                  Live coordinates confirm where you verified. If you can't capture them, your community and GPS address still work.
+                </p>
+              )}
+              {locError && <p className="mt-2 font-sans text-xs text-red-700">{locError}</p>}
             </div>
 
             <div>
@@ -159,18 +249,10 @@ export default function BuyerVerification() {
 
             <div>
               <label className={labelCls}>Live photo</label>
-              <label className="flex items-center gap-3 cursor-pointer rounded-[10px] border border-dashed border-line bg-[#fbfcfa] px-3 py-3 hover:border-leaf">
-                {photoPreview ? (
-                  <img src={photoPreview} alt="Live photo preview" className="h-14 w-14 rounded-md object-cover" />
-                ) : (
-                  <span className="flex h-14 w-14 items-center justify-center rounded-md bg-lime/30 text-2xl text-leaf">+</span>
-                )}
-                <span className="text-sm text-muted">
-                  {photo ? photo.name : 'Upload a clear photo of yourself (JPG/PNG)'}
-                </span>
-                <input type="file" accept="image/*" className="hidden" onChange={onPhoto} />
-              </label>
+              <CameraCapture value={photo} onChange={setPhoto} />
             </div>
+
+            <AgreementCheckbox checked={agreed} onChange={setAgreed} />
 
             <button
               type="submit"

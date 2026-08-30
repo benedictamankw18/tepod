@@ -64,6 +64,9 @@ const ROW_TO_USER = (r) => ({
   address: r.address || null,
   photoUrl: r.photo_url || null,
   verified: r.verified,
+  active: r.active ?? true,
+  deletedAt: r.deleted_at || null,
+  termsAcceptedAt: r.terms_accepted_at || null,
   rating: r.rating === null ? null : Number(r.rating),
   ratingCount: r.rating_count,
   createdAt: r.created_at,
@@ -79,7 +82,7 @@ function publicUser(u) {
 async function createUser({
   name, phone, email, username, passwordHash, role, location, cropTypes, primaryCrops,
   purchaseCrops, language, farmSize, community, buyerType, mobileMoneyProvider, verified,
-  lat, lng, region, district, gpsAddress, address,
+  lat, lng, region, district, gpsAddress, address, acceptedTerms,
 }) {
   const id = randomUUID();
   const isBuyer = role === "buyer" || role === "market_seller";
@@ -90,12 +93,13 @@ async function createUser({
   const normEmail = String(email || "").toLowerCase() || null;
   const normPrimary = normalizeCrops(Array.isArray(primaryCrops) ? primaryCrops : []);
   const normPurchase = normalizeCrops(Array.isArray(purchaseCrops) ? purchaseCrops : []);
+  const termsAcceptedAt = acceptedTerms === true ? new Date() : null;
   const rows = await query(
     `INSERT INTO users (
        id, name, phone, email, username, password_hash, role, location, crop_types, primary_crops,
        purchase_crops, buyer_type, mobile_money_provider, language, farm_size, community, verified,
-       lat, lng, region, district, gps_address, address
-     ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23)
+       lat, lng, region, district, gps_address, address, terms_accepted_at
+     ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24)
      RETURNING *`,
     [
       id, name, normalizeE164(phone) || null, normEmail, normalizeUsername(username), passwordHash || null, role, location || null,
@@ -114,10 +118,16 @@ async function createUser({
       district || null,
       gpsAddress || null,
       address || null,
+      termsAcceptedAt,
     ]
   );
   await syncUserCrops(id, { primaryCrops: normPrimary, purchaseCrops: normPurchase });
   return ROW_TO_USER(rows.rows[0]);
+}
+
+async function acceptTerms(id) {
+  const r = await query("UPDATE users SET terms_accepted_at = now() WHERE id = $1 RETURNING *", [id]);
+  return r.rowCount ? ROW_TO_USER(r.rows[0]) : null;
 }
 
 async function getUser(id) {
@@ -151,9 +161,56 @@ async function findUserByIdentifier(identifier) {
   return findUserByPhone(value);
 }
 
-async function listUsers() {
-  const r = await query("SELECT * FROM users ORDER BY created_at ASC");
-  return r.rows.map(ROW_TO_USER);
+// Admin list of all users with optional filters (role, verified flag, free-text search
+// across name/phone/email). Each row is enriched with the buyer's latest verification
+// record (left join, additive) so the admin verification page has one source.
+async function listUsers({ role, verified, q } = {}) {
+  const conds = [];
+  const params = [];
+  if (role) {
+    params.push(role);
+    conds.push(`u.role = $${params.length}`);
+  }
+  if (verified !== undefined) {
+    params.push(verified);
+    conds.push(`u.verified = $${params.length}`);
+  }
+  if (q) {
+    params.push(`%${q.toLowerCase()}%`);
+    conds.push(
+      `(LOWER(u.name) LIKE $${params.length} OR LOWER(COALESCE(u.phone, '')) LIKE $${params.length} OR LOWER(COALESCE(u.email, '')) LIKE $${params.length})`
+    );
+  }
+  const where = conds.length ? `WHERE ${conds.join(" AND ")}` : "";
+  const r = await query(
+    `SELECT u.*,
+            v.id AS v_id, v.id_type AS v_id_type, v.id_number AS v_id_number,
+            v.photo_url AS v_photo_url, v.lat AS v_lat, v.lng AS v_lng,
+            v.submitted_at AS v_submitted_at
+     FROM users u
+     LEFT JOIN buyer_verifications v ON v.id = (
+       SELECT vv.id FROM buyer_verifications vv
+       WHERE vv.user_id = u.id ORDER BY vv.submitted_at DESC LIMIT 1
+     )
+     ${where}
+     ORDER BY u.created_at ASC`,
+    params
+  );
+  return r.rows.map((row) => {
+    const user = ROW_TO_USER(row);
+    user.verification = row.v_id
+      ? {
+          id: row.v_id,
+          idType: row.v_id_type,
+          idNumber: row.v_id_number,
+          photoUrl: row.v_photo_url,
+          lat: row.v_lat == null ? null : Number(row.v_lat),
+          lng: row.v_lng == null ? null : Number(row.v_lng),
+          submittedAt: row.v_submitted_at,
+        }
+      : null;
+    return user;
+  });
 }
 
 async function rateUser(id, score) {
@@ -170,6 +227,12 @@ async function rateUser(id, score) {
 
 async function updateUserVerified(id, verified = true) {
   const r = await query("UPDATE users SET verified = $2 WHERE id = $1 RETURNING *", [id, verified]);
+  return r.rowCount ? ROW_TO_USER(r.rows[0]) : null;
+}
+
+async function updateUserRole(id, role) {
+  if (!ROLES.includes(role)) return null;
+  const r = await query("UPDATE users SET role = $2 WHERE id = $1 RETURNING *", [id, role]);
   return r.rowCount ? ROW_TO_USER(r.rows[0]) : null;
 }
 
@@ -271,6 +334,83 @@ async function updateAccount(id, {
   return rows.rowCount ? ROW_TO_USER(rows.rows[0]) : null;
 }
 
+// Admin edits a user's account fields (partial update: omitted fields stay
+// unchanged). Does not touch credentials (see setPassword) or the active/deleted flags.
+async function updateUserAdmin(id, {
+  name, phone, email, username, role, verified,
+  location, language, buyerType, mobileMoneyProvider, farmSize,
+  community, district, region, gpsAddress, address,
+}) {
+  const rows = await query(
+    `UPDATE users SET
+       name                  = COALESCE($2, name),
+       phone                 = COALESCE($3, phone),
+       email                 = COALESCE($4, email),
+       username              = COALESCE($5, username),
+       role                  = COALESCE($6, role),
+       verified              = COALESCE($7, verified),
+       location              = COALESCE($8, location),
+       language              = COALESCE($9, language),
+       buyer_type            = COALESCE($10, buyer_type),
+       mobile_money_provider = COALESCE($11, mobile_money_provider),
+       farm_size             = COALESCE($12, farm_size),
+       community             = COALESCE($13, community),
+       district              = COALESCE($14, district),
+       region                = COALESCE($15, region),
+       gps_address           = COALESCE($16, gps_address),
+       address               = COALESCE($17, address)
+     WHERE id = $1 RETURNING *`,
+    [
+      id,
+      (name || "").trim() || undefined,
+      phone ? normalizeE164(phone) || undefined : undefined,
+      email !== undefined ? String(email || "").toLowerCase() || undefined : undefined,
+      username !== undefined ? normalizeUsername(username) || undefined : undefined,
+      ROLES.includes(role) ? role : undefined,
+      typeof verified === "boolean" ? verified : undefined,
+      (location || "").trim() || undefined,
+      LANGUAGES.includes(language) ? language : undefined,
+      BUYER_TYPES.includes(buyerType) ? buyerType : undefined,
+      MOBILE_MONEY.includes(mobileMoneyProvider) ? mobileMoneyProvider : undefined,
+      farmSize == null || farmSize === "" ? undefined : Number(farmSize),
+      (community || "").trim() || undefined,
+      (district || "").trim() || undefined,
+      (region || "").trim() || undefined,
+      (gpsAddress || "").trim() || undefined,
+      (address || "").trim() || undefined,
+    ]
+  );
+  return rows.rowCount ? ROW_TO_USER(rows.rows[0]) : null;
+}
+
+// Admin deactivates/reactivates an account. Deleted accounts must be restored first.
+async function setUserActive(id, active = true) {
+  const rows = await query(
+    "UPDATE users SET active = $2 WHERE id = $1 AND deleted_at IS NULL RETURNING *",
+    [id, !!active]
+  );
+  return rows.rowCount ? ROW_TO_USER(rows.rows[0]) : null;
+}
+
+// Admin soft delete: stamp deleted_at so the account disappears from login and public
+// views while listing/pre-commitment/transaction history stays intact. Restorable.
+async function deleteUser(id) {
+  const rows = await query(
+    "UPDATE users SET deleted_at = now() WHERE id = $1 AND deleted_at IS NULL RETURNING *",
+    [id]
+  );
+  return rows.rowCount ? ROW_TO_USER(rows.rows[0]) : null;
+}
+
+// Admin restore: clear the deleted_at stamp so the account is usable again.
+async function restoreUser(id) {
+  const rows = await query(
+    "UPDATE users SET deleted_at = NULL WHERE id = $1 AND deleted_at IS NOT NULL RETURNING *",
+    [id]
+  );
+  return rows.rowCount ? ROW_TO_USER(rows.rows[0]) : null;
+}
+
 async function updatePhotoUrl(id, photoUrl) {
   const rows = await query(
     "UPDATE users SET photo_url = $2 WHERE id = $1 RETURNING *",
@@ -282,6 +422,7 @@ async function updatePhotoUrl(id, photoUrl) {
 module.exports = {
   ROLES, SIGNUP_ROLES, BUYER_TYPES, MOBILE_MONEY, LANGUAGES, normalizeE164, normalizeUsername,
   createUser, getUser, findUserByPhone, findUserByEmail, findUserByUsername, findUserByIdentifier,
-  listUsers, rateUser, updateUserVerified, updateProfile, updateAccount, updatePhotoUrl,
+  listUsers, rateUser, updateUserVerified, updateUserRole, updateProfile, updateAccount, updatePhotoUrl,
+  updateUserAdmin, setUserActive, deleteUser, restoreUser, acceptTerms,
   setPassword, publicUser,
 };

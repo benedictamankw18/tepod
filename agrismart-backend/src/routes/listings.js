@@ -1,9 +1,14 @@
 const express = require("express");
 const listingsRepo = require("../repositories/listings");
 const farmsRepo = require("../repositories/farms");
+const usersRepo = require("../repositories/users");
+const audit = require("../repositories/adminAudit");
 const { requireAuth, requireRole } = require("../middleware/auth");
 
 const router = express.Router();
+
+// Normalize a free-text moderation reason (trimmed, collapse whitespace, capped).
+const cleanReason = (v) => String(v || "").trim().replace(/\s+/g, " ").slice(0, 500) || null;
 
 // Resolves an optional farm link, ensuring the farm belongs to the given farmer.
 // Returns null when no farm is supplied; throws an error sentinel otherwise via
@@ -83,22 +88,62 @@ async function resolveFarmId(farmId, farmerId) {
  *               items:
  *                 $ref: '#/components/schemas/Listing'
  */
-// POST /api/listings - farmer lists produce (FR-1.1)
+// POST /api/listings - farmer lists produce (FR-1.1); admins may list for a farmer
 router.post("/", requireAuth, async (req, res) => {
-  const { cropType, quantity, unit, harvestDate, askingPrice, location, region, district, gpsAddress, details, maturity, farmId, imageUrls } = req.body;
+  const { cropType, quantity, unit, harvestDate, askingPrice, minimumPrice, location, region, district, gpsAddress, details, maturity, farmId, imageUrls, farmerId } = req.body;
   if (!cropType) return res.status(400).json({ error: "cropType is required" });
   const q = Number(quantity);
   const p = Number(askingPrice);
   if (!q || q <= 0) return res.status(400).json({ error: "quantity must be a positive number" });
   if (Number.isNaN(p) || p < 0) return res.status(400).json({ error: "askingPrice must be a valid amount" });
+  if (minimumPrice != null && (Number.isNaN(Number(minimumPrice)) || Number(minimumPrice) < 0)) {
+    return res.status(400).json({ error: "minimumPrice must be a valid amount" });
+  }
+  if (Array.isArray(imageUrls) && imageUrls.length > 5) {
+    return res.status(400).json({ error: "a listing can have at most 5 images" });
+  }
+  if (req.user.role === "admin") {
+    // Admins may list produce for any farmer (they pick the owner).
+    if (!farmerId || !String(farmerId).trim()) {
+      return res.status(400).json({ error: "farmerId is required when an admin creates a listing" });
+    }
+    const owner = await usersRepo.getUser(String(farmerId).trim());
+    if (!owner || owner.role !== "farmer") {
+      return res.status(400).json({ error: "farmerId must reference an existing farmer" });
+    }
+    // Admins may relink to any live farm; owners must pick one of their own.
+    let farmCheck;
+    const rawFarm = typeof farmId === "string" ? farmId.trim() : "";
+    if (rawFarm) {
+      const farm = await farmsRepo.getFarm(rawFarm);
+      if (!farm) return res.status(400).json({ error: "farm does not exist" });
+      farmCheck = farm.id;
+    }
+    const listing = await listingsRepo.createListing({
+      farmerId: owner.id,
+      cropType,
+      quantity: q,
+      unit,
+      harvestDate,
+      askingPrice: p,
+      minimumPrice: minimumPrice == null ? null : Number(minimumPrice),
+      location: location || owner.location,
+      region: region || owner.region,
+      district: district || owner.district,
+      gpsAddress: gpsAddress || owner.gpsAddress,
+      details,
+      maturity,
+      farmId: farmCheck,
+      imageUrls,
+    });
+    await audit.logAction({ admin: req.user, entityType: "listing", entityId: listing.id, action: "create", reason: null, after: listing });
+    return res.status(201).json(listing);
+  }
   if (req.user.role !== "farmer") {
     return res.status(403).json({ error: "only farmers can list produce" });
   }
   if (!req.user.verified) {
     return res.status(403).json({ error: "verify your farmer profile before listing produce" });
-  }
-  if (Array.isArray(imageUrls) && imageUrls.length > 5) {
-    return res.status(400).json({ error: "a listing can have at most 5 images" });
   }
   const farmCheck = await resolveFarmId(farmId, req.user.id);
   if (farmCheck && farmCheck.error) return res.status(400).json({ error: farmCheck.error });
@@ -109,6 +154,7 @@ router.post("/", requireAuth, async (req, res) => {
     unit,
     harvestDate,
     askingPrice: p,
+    minimumPrice: minimumPrice == null ? null : Number(minimumPrice),
     location: location || req.user.location,
     region: region || req.user.region,
     district: district || req.user.district,
@@ -125,6 +171,13 @@ router.post("/", requireAuth, async (req, res) => {
 router.get("/", async (req, res) => {
   const { cropType, location, status } = req.query;
   res.json(await listingsRepo.searchListings({ cropType, location, status }));
+});
+
+// GET /api/listings/all - every listing incl. soft-deleted ones (admin). Registered
+// before /:id so "all" isn't swallowed as an id.
+router.get("/all", requireAuth, requireRole("admin"), async (req, res) => {
+  const { cropType, location, status, farmerId } = req.query;
+  res.json(await listingsRepo.searchListings({ cropType, location, status, farmerId, includeDeleted: true }));
 });
 
 /**
@@ -204,9 +257,10 @@ router.put("/:id/images", requireAuth, async (req, res) => {
   res.json(updated);
 });
 
-// PUT /api/listings/:id - owner edits listing fields
+// PUT /api/listings/:id - owner edits listing fields; admins may edit any listing but
+// a reason is required (audited).
 router.put("/:id", requireAuth, async (req, res) => {
-  const { cropType, quantity, unit, harvestDate, askingPrice, location, region, district, gpsAddress, details, maturity, farmId } = req.body;
+  const { cropType, quantity, unit, harvestDate, askingPrice, minimumPrice, location, region, district, gpsAddress, details, maturity, farmId, reason } = req.body;
   if (cropType && !String(cropType).trim()) {
     return res.status(400).json({ error: "cropType cannot be empty" });
   }
@@ -216,8 +270,29 @@ router.put("/:id", requireAuth, async (req, res) => {
   if (askingPrice != null && (Number.isNaN(Number(askingPrice)) || Number(askingPrice) < 0)) {
     return res.status(400).json({ error: "askingPrice must be a valid amount" });
   }
+  if (minimumPrice != null && (Number.isNaN(Number(minimumPrice)) || Number(minimumPrice) < 0)) {
+    return res.status(400).json({ error: "minimumPrice must be a valid amount" });
+  }
   const listing = await listingsRepo.getListing(req.params.id);
   if (!listing) return res.status(404).json({ error: "listing not found" });
+  const isAdmin = req.user.role === "admin";
+  if (isAdmin) {
+    const why = cleanReason(reason);
+    if (!why) return res.status(400).json({ error: "a reason is required when an admin edits a listing" });
+    // Admins may relink to any live farm.
+    let farmCheck;
+    const raw = typeof farmId === "string" ? farmId.trim() : "";
+    if (raw) {
+      const farm = await farmsRepo.getFarm(raw);
+      if (!farm) return res.status(400).json({ error: "farm does not exist" });
+      farmCheck = farm.id;
+    }
+    const updated = await listingsRepo.updateListing(req.params.id, {
+      cropType, quantity, unit, harvestDate, askingPrice, minimumPrice: minimumPrice == null ? null : Number(minimumPrice), location, region, district, gpsAddress, details, maturity, farmId: farmCheck,
+    });
+    await audit.logAction({ admin: req.user, entityType: "listing", entityId: listing.id, action: "edit", reason: why, before: listing, after: updated });
+    return res.json(updated);
+  }
   if (listing.farmerId !== req.user.id) {
     return res.status(403).json({ error: "only the listing owner can edit this listing" });
   }
@@ -227,43 +302,49 @@ router.put("/:id", requireAuth, async (req, res) => {
   const farmCheck = await resolveFarmId(farmId, req.user.id);
   if (farmCheck && farmCheck.error) return res.status(400).json({ error: farmCheck.error });
   const updated = await listingsRepo.updateListing(req.params.id, {
-    cropType, quantity, unit, harvestDate, askingPrice, location, region, district, gpsAddress, details, maturity, farmId: farmCheck,
+    cropType, quantity, unit, harvestDate, askingPrice, minimumPrice: minimumPrice == null ? null : Number(minimumPrice), location, region, district, gpsAddress, details, maturity, farmId: farmCheck,
   });
   res.json(updated);
 });
 
-// DELETE /api/listings/:id - owner deletes a listing (refused if it has activity)
+// DELETE /api/listings/:id - owner soft-deletes a listing (keeps the row + history,
+// hides it from the market). Works even when the listing has offers or transactions.
+// Admins may delete any listing but must supply a reason (audited).
 router.delete("/:id", requireAuth, async (req, res) => {
   const listing = await listingsRepo.getListing(req.params.id);
   if (!listing) return res.status(404).json({ error: "listing not found" });
+  const isAdmin = req.user.role === "admin";
+  if (isAdmin) {
+    const why = cleanReason(req.body?.reason);
+    if (!why) return res.status(400).json({ error: "a reason is required when an admin deletes a listing" });
+    const deleted = await listingsRepo.deleteListing(req.params.id);
+    await audit.logAction({ admin: req.user, entityType: "listing", entityId: listing.id, action: "delete", reason: why, before: listing, after: deleted });
+    return res.json(deleted);
+  }
   if (listing.farmerId !== req.user.id) {
     return res.status(403).json({ error: "only the listing owner can delete this listing" });
   }
   if (!req.user.verified) {
     return res.status(403).json({ error: "verify your farmer profile before deleting a listing" });
   }
-  const activity = await listingsRepo.hasListingActivity(req.params.id);
-  if (activity.active) {
-    return res.status(409).json({
-      error: "This listing has received offers or transactions. Deactivate it instead of deleting.",
-    });
-  }
   const deleted = await listingsRepo.deleteListing(req.params.id);
   res.json(deleted);
 });
 
-// PATCH /api/listings/:id/status - owner activates or deactivates a listing
+// PATCH /api/listings/:id/status - owner activates/deactivates a listing; admins may
+// set any status (sold, expired, deactivated, deleted, ...).
 router.patch("/:id/status", requireAuth, async (req, res) => {
   const { status } = req.body;
-  if (!["open", "deactivated"].includes(status)) {
-    return res.status(400).json({ error: "status must be 'open' or 'deactivated'" });
+  const allowed = req.user.role === "admin" ? listingsRepo.LISTING_STATUSES : ["open", "deactivated"];
+  if (!allowed.includes(status)) {
+    return res.status(400).json({ error: `status must be one of: ${allowed.join(", ")}` });
   }
   const listing = await listingsRepo.getListing(req.params.id);
   if (!listing) return res.status(404).json({ error: "listing not found" });
-  if (listing.farmerId !== req.user.id) {
+  if (listing.farmerId !== req.user.id && req.user.role !== "admin") {
     return res.status(403).json({ error: "only the listing owner can change this listing" });
   }
-  if (!req.user.verified) {
+  if (listing.farmerId === req.user.id && !req.user.verified) {
     return res.status(403).json({ error: "verify your farmer profile before changing a listing" });
   }
   const updated = await listingsRepo.setListingStatus(req.params.id, status);

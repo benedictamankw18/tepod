@@ -1,6 +1,6 @@
-# AgriSmart AI — Backend
+# NKABOM AGRILINK — Backend
 
-Production backend for AgriSmart AI: a marketplace connecting smallholder farmers with
+Production backend for NKABOM AGRILINK: a marketplace connecting smallholder farmers with
 wholesale/retail/processor buyers in Ghana, plus price info, payment tracking, transport
 coordination, and USSD/SMS access.
 

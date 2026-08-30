@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { getUser, updateUser } from '../lib/auth'
 import { updateAccount, updatePhoto, changePassword, uploadImage } from '../lib/api'
 import { useCrops } from '../lib/crops'
@@ -185,6 +186,31 @@ function SettingsContent() {
           {photoError && <p className="mt-2 font-sans text-xs text-red-600">{photoError}</p>}
         </section>
 
+        {/* Verification */}
+        <section className="mb-5 rounded-2xl border border-line bg-white p-5 shadow-sm">
+          <h2 className="mb-2 font-serif text-lg font-semibold tracking-[-.03em] text-ink">Verification</h2>
+          {user?.verified ? (
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <p className="font-sans text-sm text-muted">Your profile is verified and you can trade.</p>
+              <span className="rounded-full bg-leaf/10 px-3 py-1 font-sans text-xs font-bold text-leaf-dark">
+                Verified
+              </span>
+            </div>
+          ) : (
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <p className="font-sans text-sm text-muted">
+                Verify your profile before you can list produce or place orders.
+              </p>
+              <Link
+                to="/verify"
+                className="inline-block rounded-[10px] bg-leaf px-4 py-2 font-sans text-xs font-bold text-white transition hover:bg-leaf-dark"
+              >
+                Verify my profile
+              </Link>
+            </div>
+          )}
+        </section>
+
         {error && (
           <div className="mb-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 font-sans text-sm text-red-700">
             {error}
@@ -323,7 +349,7 @@ function SettingsContent() {
 
 export default function SettingsPage() {
   return (
-    <AppShell activeId="settings">
+    <AppShell activeId="settings" hideCartFloating>
       <SettingsContent />
     </AppShell>
   )

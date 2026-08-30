@@ -7,6 +7,7 @@ const ROW_TO_CART = (r) => ({
   cropType: r.crop_type,
   unit: r.unit,
   askingPrice: Number(r.asking_price),
+  minimumPrice: r.minimum_price == null ? null : Number(r.minimum_price),
   availableQty: Number(r.available_qty),
   status: r.status,
   farmerName: r.farmer_name,
@@ -21,7 +22,7 @@ const ROW_TO_CART = (r) => ({
 async function getCart(userId) {
   const r = await query(
     `SELECT c.id, c.listing_id, c.quantity,
-            l.crop_type, l.unit, l.asking_price, l.quantity AS available_qty,
+            l.crop_type, l.unit, l.asking_price, l.minimum_price, l.quantity AS available_qty,
             l.status, l.location, l.image_url, l.image_urls,
             u.name AS farmer_name
      FROM cart_items c
@@ -34,13 +35,13 @@ async function getCart(userId) {
   return r.rows.map(ROW_TO_CART);
 }
 
-// Add a line (or bump its quantity) if the listing exists and is still open.
-// Returns { item } on success, or { error, code } (403/404/409) otherwise.
+// Add a line (or bump its quantity) if the listing exists and is still purchasable
+// (open or pre_committed). Returns { item } on success, or { error, code } otherwise.
 async function upsertCartItem({ userId, listingId, quantity }) {
   const listing = await query("SELECT status FROM listings WHERE id = $1", [listingId]);
   if (listing.rowCount === 0) return { error: "listing not found", code: 404 };
-  if (listing.rows[0].status !== "open") {
-    return { error: `listing is not open (status: ${listing.rows[0].status})`, code: 409 };
+  if (!["open", "pre_committed"].includes(listing.rows[0].status)) {
+    return { error: `listing is not purchasable (status: ${listing.rows[0].status})`, code: 409 };
   }
   const id = randomUUID();
   const r = await query(

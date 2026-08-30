@@ -11,11 +11,8 @@ const messages = require("./messages");
 
 const OTP_KEY = "agrismart.otp.";
 
-// Buyers (incl. market sellers) must complete the buyer-profile/verification step
-// before they can make commitments; farmers are considered verified at signup.
-function buyersMustVerify(role) {
-  return role === "buyer" || role === "market_seller";
-}
+// Every account starts unverified and must complete the /api/auth/verify step
+// (ID + live photo) before trading, listing produce, or managing farms.
 
 function hashPassword(plain) {
   return bcrypt.hash(plain, 10);
@@ -135,7 +132,7 @@ async function loginOrRegisterWithOtp({ phone, name, role, buyerType, location }
       role,
       buyerType,
       location,
-      verified: buyersMustVerify(role) ? false : true,
+      verified: false,
     });
   }
   return { user, token: signToken(user) };
@@ -162,7 +159,7 @@ async function registerWithPassword(payload) {
   const user = await usersRepo.createUser({
     ...payload,
     passwordHash,
-    verified: buyersMustVerify(payload.role) ? false : true,
+    verified: false,
   });
   return { user, token: signToken(user) };
 }
@@ -173,12 +170,27 @@ async function loginWithPassword({ identifier, password }) {
   if (!user || !user.passwordHash) return { error: "invalid_credentials" };
   const ok = await comparePassword(password, user.passwordHash);
   if (!ok) return { error: "invalid_credentials" };
+  // Only after a successful password check, so account status is not leaked to
+  // someone who doesn't know the password.
+  if (!user.active || user.deletedAt) return { error: "account_deactivated" };
   return { user, token: signToken(user) };
+}
+
+// Admin-initiated account creation: any role, optional password (accounts without
+// one rely on OTP/Google login), and an explicit verified flag instead of the
+// signup default. Bypasses the SIGNUP_ROLES gate so transporters/admins can be seeded.
+async function createUserByAdmin({ password, verified, ...profile }) {
+  const passwordHash = password ? await hashPassword(password) : null;
+  return usersRepo.createUser({
+    ...profile,
+    passwordHash,
+    verified: verified !== undefined ? !!verified : true,
+  });
 }
 
 // Google sign-in via a client-side Google ID token. Verifies the token server-side
 // against GOOGLE_CLIENT_ID (config.googleClientId). New users must pick a role.
-async function googleLogin({ idToken, name, role, buyerType }) {
+async function googleLogin({ idToken, name, role, buyerType, acceptedTerms }) {
   if (!config.googleClientId) {
     return { error: "google_signin_not_configured" };
   }
@@ -222,7 +234,8 @@ async function googleLogin({ idToken, name, role, buyerType }) {
       email: email || null,
       role,
       buyerType,
-      verified: buyersMustVerify(role) ? false : true,
+      acceptedTerms: acceptedTerms === true,
+      verified: false,
     });
     created = true;
   }
@@ -237,6 +250,7 @@ module.exports = {
   hashPassword, comparePassword, signToken, verifyToken,
   issueOtp, verifyOtp, markOtpUsed,   loginOrRegisterWithOtp,
   registerWithPassword, loginWithPassword, googleLogin, resetPassword,
+  createUserByAdmin,
   // for templates / reuse
   render: messages.render,
 };

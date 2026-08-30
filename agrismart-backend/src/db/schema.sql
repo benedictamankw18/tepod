@@ -1,4 +1,4 @@
--- AgriSmart AI - PostgreSQL schema
+-- NKABOM AGRILINK - PostgreSQL schema
 -- Mirrors the relational data model from Phase 1 (Design & Planning §2.3).
 -- Idempotent: safe to run repeatedly.
 

@@ -7,7 +7,7 @@ export default defineConfig({
   plugins: [react(), tailwindcss()],
   server: {
     proxy: {
-      // Forward API calls to the AgriSmart backend during development (same-origin
+      // Forward API calls to the NKABOM AGRILINK backend during development (same-origin
       // requests, so no CORS is needed on the backend).
       '/api': {
         target: process.env.VITE_API_TARGET || 'http://localhost:3000',

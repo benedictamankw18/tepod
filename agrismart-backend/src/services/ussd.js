@@ -16,7 +16,7 @@ const BUYER_TYPE_MAP = { 1: "wholesale", 2: "retail", 3: "processor" };
 const LANG_MAP = { 1: "en", 2: "tw" };
 
 const mainMenu = () =>
-  "CON Welcome to AgriSmart AI\n1. Register\n2. List my produce\n3. Check crop price\n4. Check pre-commitment status\n0. Exit";
+  "CON Welcome to NKABOM AGRILINK\n1. Register\n2. List my produce\n3. Check crop price\n4. Check pre-commitment status\n0. Exit";
 
 async function createUserFromSession(session, phoneNumber) {
   return usersRepo.createUser({
@@ -110,7 +110,7 @@ async function handle({ sessionId, phoneNumber, text }) {
         }
       } else if (latestInput === "0") {
         await sessionsRepo.clearSession(sessionId);
-        response = "END Thank you for using AgriSmart AI.";
+        response = "END Thank you for using NKABOM AGRILINK.";
       } else {
         response = "CON Sorry, invalid choice.\n" + mainMenu().replace("CON ", "");
       }
@@ -254,7 +254,7 @@ async function handle({ sessionId, phoneNumber, text }) {
         location: farmer.location,
       });
       await sessionsRepo.clearSession(sessionId);
-      response = `END Listing created: ${listing.quantity} bags of ${listing.cropType}, asking GHS ${listing.askingPrice}. Buyers can now find it on AgriSmart AI.`;
+      response = `END Listing created: ${listing.quantity} bags of ${listing.cropType}, asking GHS ${listing.askingPrice}. Buyers can now find it on NKABOM AGRILINK.`;
       break;
     }
 

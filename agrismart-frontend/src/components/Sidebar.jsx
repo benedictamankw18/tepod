@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { logout } from '../lib/auth'
 import { MenuIcon, ICONS, LogoutIcon } from './icons'
+import logo from '../assets/media/logo.jpeg'
+import NotificationBell from './NotificationBell'
 
 function NavItem({ link, activeId, open }) {
   const Icon = ICONS[link.id]
@@ -59,12 +61,14 @@ export default function Sidebar({ user, links = [], activeId, onNavigate, iconOn
         )}
         {open && (
           <Link to="/" className="flex min-w-0 items-center gap-2.5 px-1">
-            <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-lime font-sans text-sm font-extrabold text-leaf-dark">
-              A
-            </span>
+            <img
+              src={logo}
+              alt="NKABOM AGRILINK logo"
+              className="h-7 w-7 shrink-0 rounded-lg object-contain"
+            />
             <span className="min-w-0">
               <span className="block truncate font-serif text-lg font-bold tracking-tight text-[#eff5e9]">
-                AgriSmart
+                NKABOM AGRILINK
               </span>
               {user?.name && (
                 <span className="block truncate text-[11px] text-[#b6cbc0] capitalize">
@@ -75,10 +79,16 @@ export default function Sidebar({ user, links = [], activeId, onNavigate, iconOn
           </Link>
         )}
         {iconOnly && (
-          <Link to="/" className="grid h-7 w-7 place-items-center rounded-lg bg-lime font-sans text-sm font-extrabold text-leaf-dark">
-            A
+          <Link
+            to="/"
+            aria-label="NKABOM AGRILINK"
+            className="grid h-7 w-7 place-items-center rounded-lg"
+          >
+            <img src={logo} alt="" className="h-7 w-7 object-contain" />
           </Link>
         )}
+        {open && <NotificationBell iconSize="h-8 w-8" />}
+        {iconOnly && <NotificationBell iconSize="h-8 w-8" className="mt-1" />}
       </div>
 
       {open && user?.name && (

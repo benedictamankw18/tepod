@@ -2,6 +2,9 @@ import { useState } from 'react'
 import { createPrecommitment } from '../lib/api'
 import { Link } from 'react-router-dom'
 
+const fmt = (n) =>
+  (Number.isFinite(Number(n)) ? Number(n) : 0).toFixed(2).replace(/\.00$/, '')
+
 function CloseIcon() {
   return (
     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
@@ -17,7 +20,6 @@ export default function CartDrawer({
   onSetQty,
   onRemove,
   onClear,
-  subtotal,
   count,
   verified,
   onVerifyPrompt,
@@ -25,6 +27,14 @@ export default function CartDrawer({
 }) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const [offers, setOffers] = useState({})
+
+  const offerOf = (l) => {
+    const raw = offers[l.listingId]
+    return raw !== undefined && raw !== '' ? Number(raw) : Number(l.askingPrice ?? 0)
+  }
+  const lineTotal = (l) => l.qty * offerOf(l)
+  const totals = items.reduce((n, l) => n + lineTotal(l), 0)
 
   const checkout = async () => {
     setError('')
@@ -33,6 +43,14 @@ export default function CartDrawer({
       return
     }
     if (!items.length) return
+    const blocked = items.filter(
+      (l) => l.minimumPrice != null && offerOf(l) < Number(l.minimumPrice),
+    )
+    if (blocked.length) {
+      const names = blocked.map((l) => l.cropType || 'item').join(', ')
+      setError(`Your offer is below the farmer's minimum for ${names}. Raise the offer amount.`)
+      return
+    }
     setBusy(true)
     try {
       const invalid = items.filter(
@@ -44,7 +62,7 @@ export default function CartDrawer({
           createPrecommitment({
             listingId: l.listingId,
             quantity: Number(l.qty),
-            offeredPrice: Number(l.askingPrice ?? 0),
+            offeredPrice: offerOf(l),
           }),
         ),
       )
@@ -109,7 +127,7 @@ export default function CartDrawer({
                       Remove
                     </button>
                   </div>
-                  <div className="mt-2.5 flex items-center justify-between">
+                  <div className="mt-2.5 flex items-center justify-between gap-2">
                     <div className="flex items-center gap-1.5">
                       <button
                         type="button"
@@ -129,10 +147,30 @@ export default function CartDrawer({
                         +
                       </button>
                     </div>
+                    <label className="flex items-center gap-1.5">
+                      <span className="font-sans text-[11px] text-muted">Offer</span>
+                      <span className="font-sans text-[11px] text-muted">GHS</span>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={offers[l.listingId] ?? l.askingPrice}
+                        onChange={(e) =>
+                          setOffers((m) => ({ ...m, [l.listingId]: e.target.value }))
+                        }
+                        className="w-24 rounded-md border border-line bg-white px-2 py-1 text-right font-sans text-sm font-semibold text-ink outline-none focus:border-leaf"
+                        aria-label={`Your offer per ${l.unit || 'unit'} for ${l.cropType}`}
+                      />
+                    </label>
                     <strong className="font-serif text-base font-semibold text-ink">
-                      GHS {(l.qty * Number(l.askingPrice || 0)).toFixed(2).replace(/\.00$/, '')}
+                      GHS {fmt(lineTotal(l))}
                     </strong>
                   </div>
+                  <p className="mt-1 font-sans text-[11px] leading-snug text-muted">
+                    Asking GHS {l.askingPrice}/{l.unit || 'unit'}
+                    {l.minimumPrice != null && ` · farmer minimum GHS ${l.minimumPrice}`}
+                    {l.minimumPrice != null && offerOf(l) < Number(l.minimumPrice) && ' · too low'}
+                  </p>
                 </div>
               ))}
             </div>
@@ -149,7 +187,7 @@ export default function CartDrawer({
             <div className="mb-3 flex items-center justify-between">
               <span className="font-sans text-sm text-muted">Subtotal</span>
               <strong className="font-serif text-xl font-semibold text-ink">
-                GHS {subtotal.toFixed(2).replace(/\.00$/, '')}
+                GHS {fmt(totals)}
               </strong>
             </div>
             {!verified && (
@@ -166,7 +204,7 @@ export default function CartDrawer({
               disabled={busy}
               className="w-full rounded-[10px] bg-leaf py-3 font-sans text-sm font-bold text-white transition hover:bg-leaf-dark disabled:opacity-50"
             >
-              {busy ? 'Placing order…' : `Place order · GHS ${subtotal.toFixed(2).replace(/\.00$/, '')}`}
+              {busy ? 'Placing order…' : `Place order · GHS ${fmt(totals)}`}
             </button>
           </div>
         )}

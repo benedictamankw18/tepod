@@ -37,7 +37,7 @@ async function sendEmail({ to, subject, text }) {
   }
   try {
     await t.sendMail({
-      from: `"AgriSmart" <${config.smtpUser}>`,
+      from: `"NKABOM AGRILINK" <${config.smtpUser}>`,
       to,
       subject,
       text,

@@ -59,6 +59,7 @@ export function useCart(enabled = true) {
       cropType: product.cropType,
       unit: product.unit,
       askingPrice: product.askingPrice,
+      minimumPrice: product.minimumPrice,
       availableQty: product.quantity,
       qty: Math.max(1, Math.min(qty, product.quantity || 999)),
     }

@@ -24,7 +24,7 @@ describe("USSD buyer registration (required buyer_type + optional follow-ups)", 
 
   test("walk through the buyer menu to a completed registration", async () => {
     let r = await ussd(sess, phone, "");
-    expect(r.text).toContain("AgriSmart");
+    expect(r.text).toContain("NKABOM AGRILINK");
 
     r = await ussd(sess, phone, "1");
     expect(r.text).toContain("full name");

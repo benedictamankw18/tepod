@@ -9,6 +9,7 @@ import { isValidGhanaPhone } from '../lib/phone'
 import { useCrops } from '../lib/crops'
 import CropPicker from '../components/CropPicker'
 import SearchableSelect from '../components/SearchableSelect'
+import AgreementCheckbox from '../components/AgreementCheckbox'
 
 const inputCls =
   'w-full rounded-[10px] border border-line bg-[#fbfcfa] px-3 py-2.5 font-sans text-sm text-ink outline-none focus:border-leaf focus:shadow-[0_0_0_3px_rgba(29,101,79,.12)]'
@@ -78,11 +79,13 @@ export default function Register() {
     role: 'farmer',
     buyerType: '',
     primaryCrops: [],
+    purchaseCrops: [],
   })
   const [checks, setChecks] = useState(initialChecks)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const [suggestions, setSuggestions] = useState([])
+  const [agreed, setAgreed] = useState(false)
 
   // Whenever the name changes, generate 3 candidate usernames and check each one
   // for availability, tagging them so the user can pick a free one. State is only
@@ -190,6 +193,10 @@ export default function Register() {
       setError('Please use a different phone, email, or username.')
       return
     }
+    if (!agreed) {
+      setError('You must agree to the Terms of Service and Privacy Policy to continue.')
+      return
+    }
     setBusy(true)
     try {
       const result = await register({
@@ -201,9 +208,11 @@ export default function Register() {
         role: form.role,
         buyerType: isBuyer ? form.buyerType : undefined,
         primaryCrops: !isBuyer && form.primaryCrops.length ? form.primaryCrops : undefined,
+        purchaseCrops: isBuyer && form.purchaseCrops.length ? form.purchaseCrops : undefined,
+        acceptedTerms: true,
       })
       setSession(result.user, result.token)
-      navigate(isBuyer ? '/verify' : '/')
+      navigate('/verify')
     } catch (err) {
       setError(err.message)
     } finally {
@@ -256,6 +265,18 @@ export default function Register() {
                 { value: 'processor', label: 'Processor' },
               ]}
               placeholder="Select buyer type…"
+            />
+          </div>
+        )}
+
+        {isBuyer && (
+          <div>
+            <label className={labelCls}>Interested in buying (optional)</label>
+            <CropPicker
+              crops={crops}
+              selected={form.purchaseCrops}
+              onChange={(list) => setForm((f) => ({ ...f, purchaseCrops: list }))}
+              placeholder="e.g. Tiger nuts"
             />
           </div>
         )}
@@ -369,9 +390,11 @@ export default function Register() {
           )}
         </div>
 
+        <AgreementCheckbox checked={agreed} onChange={setAgreed} />
+
         <button
           type="submit"
-          disabled={busy || anyTaken || passwordMismatch || !phoneFormatOk}
+          disabled={busy || anyTaken || passwordMismatch || !phoneFormatOk || !agreed}
           className="w-full rounded-[10px] bg-leaf py-2.5 font-sans text-sm font-bold text-white transition hover:bg-leaf-dark disabled:opacity-50"
         >
           {busy ? 'Creating…' : 'Create account'}
@@ -387,7 +410,7 @@ export default function Register() {
       <GoogleButton
         role={form.role}
         buyerType={isBuyer ? form.buyerType : undefined}
-        onSuccess={() => navigate('/')}
+        onSuccess={(result) => navigate(result.user && !result.user.verified ? '/verify' : '/')}
         onError={(err) => setError(err.message)}
       />
 

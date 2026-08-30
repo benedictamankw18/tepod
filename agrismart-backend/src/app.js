@@ -24,6 +24,9 @@ const wishlistRoutes = require("./routes/wishlist");
 const cropsRoutes = require("./routes/crops");
 const unitsRoutes = require("./routes/units");
 const regionsRoutes = require("./routes/regions");
+const adminRoutes = require("./routes/audit");
+const reviewsRoutes = require("./routes/reviews");
+const settingsRoutes = require("./routes/settings");
 
 function createApp() {
   const app = express();
@@ -56,6 +59,9 @@ function createApp() {
   app.use("/api/crops", cropsRoutes);
   app.use("/api/units", unitsRoutes);
   app.use("/api/regions", regionsRoutes);
+  app.use("/api/admin", adminRoutes);
+  app.use("/api/reviews", reviewsRoutes);
+  app.use("/api/settings", settingsRoutes);
   app.use("/ussd", ussdRoutes);
 
   // Serve uploaded images (live photos, produce, farm) from /uploads/*.

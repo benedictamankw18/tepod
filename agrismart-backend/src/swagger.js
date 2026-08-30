@@ -4,10 +4,10 @@ const options = {
   definition: {
     openapi: "3.0.0",
     info: {
-      title: "AgriSmart AI API",
+      title: "NKABOM AGRILINK API",
       version: "1.0.0",
       description:
-        "Backend API for the AgriSmart AI marketplace: users, listings, pre-commitments, " +
+        "Backend API for the NKABOM AGRILINK marketplace: users, listings, pre-commitments, " +
         "transactions, transport requests, market prices, notifications, and the USSD webhook.",
     },
     servers: [{ url: "http://localhost:3000", description: "Local development server" }],

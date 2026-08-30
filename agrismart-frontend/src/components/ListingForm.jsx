@@ -24,6 +24,7 @@ export default function ListingForm({ defaultLocation = '', listing, onDone, onC
     unit: listing?.unit || initialDefaultUnit,
     unitEdited: false,
     askingPrice: listing?.askingPrice != null ? String(listing.askingPrice) : '',
+    minimumPrice: listing?.minimumPrice != null ? String(listing.minimumPrice) : '',
     harvestDate: listing?.harvestDate || '',
     location: listing?.location || defaultLocation,
     region: listing?.region || '',
@@ -146,6 +147,7 @@ export default function ListingForm({ defaultLocation = '', listing, onDone, onC
         quantity: Number(form.quantity),
         unit: form.unit,
         askingPrice: Number(form.askingPrice),
+        minimumPrice: form.minimumPrice === '' || form.minimumPrice == null ? undefined : Number(form.minimumPrice),
         harvestDate: form.harvestDate || undefined,
         location: form.location.trim() || undefined,
         region: form.region.trim() || undefined,
@@ -172,7 +174,7 @@ export default function ListingForm({ defaultLocation = '', listing, onDone, onC
 
   const finalCrop = cropKey(form.cropType)
   const canSubmit =
-    !!finalCrop && Number(form.quantity) > 0 && Number(form.askingPrice) >= 0 && !uploading
+    !!finalCrop && Number(form.quantity) > 0 && Number(form.askingPrice) >= 0 && !uploading && !(form.minimumPrice !== '' && form.minimumPrice != null && Number(form.minimumPrice) < 0)
 
   return (
     <Panel>
@@ -228,6 +230,20 @@ export default function ListingForm({ defaultLocation = '', listing, onDone, onC
               onChange={set('askingPrice')}
               placeholder="e.g. 450"
             />
+          </div>
+          <div className={fieldCls}>
+            <label className={labelCls}>Minimum acceptable price (GHS)</label>
+            <input
+              className={inputCls}
+              type="number"
+              min="0"
+              value={form.minimumPrice}
+              onChange={set('minimumPrice')}
+              placeholder="Optional"
+            />
+            <p className="mt-1 font-sans text-[11px] text-muted">
+              Buyer offers below this amount are declined. Blank means any offer is accepted.
+            </p>
           </div>
           <div className={fieldCls}>
             <label className={labelCls}>Expected harvest</label>

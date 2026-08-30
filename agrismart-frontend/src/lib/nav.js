@@ -1,10 +1,11 @@
 // Single source of truth for the authenticated navigation links. Both AppShell
 // and page-level layouts (e.g. ProduceDetail) build their nav from this so the
 // sidebar / horizontal nav never drift between pages.
-export function navLinks({ isBuyerAccount, isFarmer }) {
-  return isBuyerAccount
+export function navLinks({ isBuyerAccount, isFarmer, isAdmin }) {
+  const links = isBuyerAccount
     ? [
         { id: 'marketplace', label: 'Market place', to: '/' },
+        { id: 'precommitments', label: 'My pre-commitments', to: '/precommitments' },
         { id: 'prices', label: 'Price guide', to: '/prices' },
         { id: 'support', label: 'Support', to: '/support' },
         { id: 'settings', label: 'Settings', to: '/settings' },
@@ -22,4 +23,8 @@ export function navLinks({ isBuyerAccount, isFarmer }) {
         { id: 'support', label: 'Support', to: '/support' },
         { id: 'settings', label: 'Settings', to: '/settings' },
       ]
+  if (isAdmin) {
+    links.push({ id: 'admin', label: 'Admin', to: '/admin' })
+  }
+  return links
 }

@@ -33,6 +33,7 @@ export default function ProductCard({
   verified = true,
   onVerifyPrompt,
   viewOnly = false,
+  statusChip = null,
   onManagePhotos,
   photosActive = false,
 }) {
@@ -153,6 +154,22 @@ export default function ProductCard({
           {item.maturity && (
             <span className="mt-1 inline-block rounded-full bg-[#e8f0c5] px-2 py-0.5 font-sans text-[10px] font-bold capitalize text-leaf-dark">
               {item.maturity}
+            </span>
+          )}
+          {item.status === 'pre_committed' && item.committedByMe && (
+            <span className="mt-1 inline-block rounded-full bg-amber-100 px-2 py-0.5 font-sans text-[10px] font-bold text-amber-800">
+              Pre-committed
+            </span>
+          )}
+          {statusChip && (
+            <span className="mt-1 inline-block rounded-full bg-paper px-2 py-0.5 font-sans text-[10px] font-bold text-muted">
+              {statusChip}
+            </span>
+          )}
+          {item.rating != null && (
+            <span className="mt-1 block font-sans text-[11px] font-semibold text-ink">
+              <span className="text-amber-500" aria-hidden="true">★</span>{' '}
+              {item.rating.toFixed(1)} · {item.reviewCount} review{item.reviewCount === 1 ? '' : 's'}
             </span>
           )}
         </div>

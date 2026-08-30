@@ -34,9 +34,9 @@ const router = express.Router();
  *               type: string
  *               examples:
  *                 menu:
- *                   value: "CON Welcome to AgriSmart.\n1. Register a profile\n2. List produce\n3. Check price\n"
+ *                   value: "CON Welcome to NKABOM AGRILINK.\n1. Register a profile\n2. List produce\n3. Check price\n"
  *                 end:
- *                   value: "END Thank you for using AgriSmart."
+ *                   value: "END Thank you for using NKABOM AGRILINK."
  *       400:
  *         description: Missing sessionId or phoneNumber (returned as text/plain)
  *         content:

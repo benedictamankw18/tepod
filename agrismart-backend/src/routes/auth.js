@@ -9,6 +9,14 @@ const router = express.Router();
 const bad = (res, msg) => res.status(400).json({ error: msg });
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+// Latitude/longitude sanity check so garbage (e.g. NaN or out-of-range) never
+// reaches the numeric columns. lat must be within [-90, 90], lng within [-180, 180].
+function invalidCoords(lat, lng) {
+  if (lat != null && (!Number.isFinite(lat) || lat < -90 || lat > 90)) return "latitude must be between -90 and 90";
+  if (lng != null && (!Number.isFinite(lng) || lng < -180 || lng > 180)) return "longitude must be between -180 and 180";
+  return null;
+}
+
 /**
  * @openapi
  * /api/auth/otp/issue:
@@ -196,6 +204,9 @@ router.post("/otp/verify", async (req, res) => {
 router.post("/register", async (req, res) => {
   const { name, phone, email, username, password, role, location, buyerType, mobileMoneyProvider, purchaseCrops, primaryCrops, cropTypes, language, community, farmSize } = req.body;
   if (!name || !password) return bad(res, "name and password are required");
+  if (req.body.acceptedTerms !== true) {
+    return bad(res, "you must accept the Terms of Service and Privacy Policy to continue");
+  }
   if (!phone && !email) return bad(res, "phone or email is required");
   if (!usersRepo.SIGNUP_ROLES.includes(role)) {
     return bad(res, "role is required and must be farmer or buyer");
@@ -224,6 +235,7 @@ router.post("/register", async (req, res) => {
   const result = await auth.registerWithPassword({
     name, phone, email, username, password, role, location, buyerType, mobileMoneyProvider,
     purchaseCrops, primaryCrops, cropTypes, language, community, farmSize,
+    acceptedTerms: true,
   });
   res.status(201).json({ ...result, user: usersRepo.publicUser(result.user) });
 });
@@ -399,7 +411,10 @@ router.post("/password/reset", async (req, res) => {
 // POST /api/auth/google - Google ID token sign-in
 router.post("/google", async (req, res) => {
   const { idToken, name, role, buyerType } = req.body;
-  const result = await auth.googleLogin({ idToken, name, role, buyerType });
+  if (req.body.acceptedTerms !== true) {
+    return bad(res, "you must accept the Terms of Service and Privacy Policy to continue");
+  }
+  const result = await auth.googleLogin({ idToken, name, role, buyerType, acceptedTerms: true });
   if (result.error) {
     if (result.error === "google_signin_not_configured") {
       return res.status(501).json({ error: result.error });
@@ -443,11 +458,12 @@ router.get("/me", requireAuth, (req, res) => {
  * /api/auth/verify:
  *   post:
  *     tags: [Auth]
- *     summary: Complete the buyer verification / onboarding profile
+ *     summary: Complete account verification / onboarding profile
  *     description: >
- *       Collects purchase preferences, location details, identification type + number,
- *       and a live photo, then marks the buyer verified. Buyers must be verified before
- *       they can submit commitments. Farmers are verified at signup.
+ *       Collects location details, identification type + number, and a live photo,
+ *       then marks the account verified. Both buyers and farmers must be verified
+ *       before they can trade: buyers before committing/purchasing, farmers before
+ *       listing produce or managing farms.
  *     security:
  *       - bearerAuth: []
  *     requestBody:
@@ -490,12 +506,15 @@ router.get("/me", requireAuth, (req, res) => {
  *       401:
  *         $ref: '#/components/responses/Unauthorized'
  *       403:
- *         description: Only buyers / market sellers verify
+ *         description: Admins do not verify their profile
  */
-// POST /api/auth/verify - buyer verification / onboarding
+// POST /api/auth/verify - buyer/farmer verification / onboarding
 router.post("/verify", requireAuth, async (req, res) => {
-  if (!["buyer", "market_seller"].includes(req.user.role)) {
-    return res.status(403).json({ error: "only buyers and market sellers verify their profile" });
+  if (req.user.role === "admin") {
+    return res.status(403).json({ error: "admins do not verify their profile" });
+  }
+  if (!req.user.termsAcceptedAt && req.body.acceptedTerms !== true) {
+    return bad(res, "you must accept the Terms of Service and Privacy Policy to continue");
   }
   const { purchaseCrops, region, district, gpsAddress, address, community, lat, lng, idType, idNumber, photoUrl } = req.body;
 
@@ -508,6 +527,13 @@ router.post("/verify", requireAuth, async (req, res) => {
       resolvedLat = resolvedLat ?? g.lat;
       resolvedLng = resolvedLng ?? g.lng;
     }
+  }
+  const coordErr = invalidCoords(resolvedLat, resolvedLng);
+  if (coordErr) return bad(res, coordErr);
+
+  // Record consent the first time it is given (idempotent for repeat verifications).
+  if (!req.user.termsAcceptedAt) {
+    await usersRepo.acceptTerms(req.user.id);
   }
 
   const updated = await usersRepo.updateProfile(req.user.id, {
@@ -523,7 +549,7 @@ router.post("/verify", requireAuth, async (req, res) => {
   if (!updated) return res.status(404).json({ error: "user not found" });
 
   const verification = await verificationsRepo.submitVerification({
-    userId: req.user.id, idType, idNumber, photoUrl,
+    userId: req.user.id, idType, idNumber, photoUrl, lat: resolvedLat, lng: resolvedLng,
   });
   if (verification.error) return bad(res, verification.error);
 
@@ -545,6 +571,8 @@ router.post("/profile", requireAuth, async (req, res) => {
       resolvedLng = resolvedLng ?? g.lng;
     }
   }
+  const coordErr = invalidCoords(resolvedLat, resolvedLng);
+  if (coordErr) return bad(res, coordErr);
 
   const updated = await usersRepo.updateProfile(req.user.id, {
     primaryCrops,

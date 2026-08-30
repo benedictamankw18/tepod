@@ -1,6 +1,8 @@
 import { Link } from 'react-router-dom'
 import { logout } from '../lib/auth'
 import { ICONS, LogoutIcon } from './icons'
+import logo from '../assets/media/logo.jpeg'
+import NotificationBell from './NotificationBell'
 
 // Horizontal icon-only navigation bar, used for buyer accounts.
 export default function HorizontalNav({ links = [], activeId }) {
@@ -10,11 +12,11 @@ export default function HorizontalNav({ links = [], activeId }) {
       
       <Link
           to="/"
-          title="AgriSmart"
-          aria-label="AgriSmart"
-          className="grid h-10 w-10 place-items-center rounded-lg bg-lime font-sans text-sm font-extrabold text-leaf-dark transition hover:opacity-90"
+          title="NKABOM AGRILINK"
+          aria-label="NKABOM AGRILINK"
+          className="grid h-10 w-10 place-items-center rounded-lg transition hover:opacity-90"
         >
-          A
+          <img src={logo} alt="" className="h-8 w-8 object-contain" />
         </Link>
         </div>
        
@@ -38,6 +40,7 @@ export default function HorizontalNav({ links = [], activeId }) {
           )
         })}
         
+        <NotificationBell />
          <button
           onClick={() => {
             logout()

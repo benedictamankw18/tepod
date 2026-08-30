@@ -1,46 +1,51 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { getUser } from '../lib/auth'
-import { getProduceById, getListing, deleteListing, setListingStatus, getSimilarProduce } from '../lib/api'
+import { getProduceById, getListing, deleteListing, setListingStatus, getSimilarProduce, getListingReviews, postReview } from '../lib/api'
 import { productArt, productGradient } from '../lib/productArt'
-import { useCart } from '../lib/cart'
-import Sidebar from '../components/Sidebar'
-import HorizontalNav from '../components/HorizontalNav'
+import { STATUS_LABELS } from '../lib/statusLabels'
+import AppShell, { useAppShell } from '../components/AppShell'
 import ProductCard from '../components/ProductCard'
 import { Panel } from '../components/Panel'
 import Modal from '../components/Modal'
 import ListingForm from '../components/ListingForm'
 import ListingPhotoManager from '../components/ListingPhotoManager'
 import { CameraIcon } from '../components/icons'
-import { navLinks } from '../lib/nav'
 
-const STATUS_LABELS = {
-  open: { label: 'Open', cls: 'bg-lime text-leaf-dark' },
-  pre_committed: { label: 'Pre-committed', cls: 'bg-amber-100 text-amber-800' },
-  sold: { label: 'Sold', cls: 'bg-red-100 text-red-700' },
-  expired: { label: 'Expired', cls: 'bg-paper text-muted' },
-  spoiled_withdrawn: { label: 'Withdrawn', cls: 'bg-paper text-muted' },
-  deactivated: { label: 'Deactivated — hidden', cls: 'bg-amber-100 text-amber-800' },
-}
-
-export default function ProduceDetail() {
+function ProduceDetailContent() {
   const { id } = useParams()
   const user = getUser()
   const navigate = useNavigate()
   const [item, setItem] = useState(null)
   const [error, setError] = useState('')
   const [active, setActive] = useState(0)
-  const [qty, setQty] = useState(1)
-  const [toast, setToast] = useState('')
+  const [qty] = useState(1)
   const [editing, setEditing] = useState(false)
   const [photosOpen, setPhotosOpen] = useState(false)
   const [similar, setSimilar] = useState([])
-  const canHoldCart = ['buyer', 'market_seller'].includes(user?.role) && Boolean(user?.verified)
+  const [reviewData, setReviewData] = useState(null)
   const isBuyerLike = ['buyer', 'market_seller'].includes(user?.role)
-  const cart = useCart(canHoldCart)
+  const { cart, flashToast } = useAppShell()
+  const cartLine = item ? (cart.items.find((l) => l.listingId === item.id) || null) : null
 
   const isOwner = user?.role === 'farmer' && user?.verified && item && String(item.farmerId) === String(user.id)
   const isUnverifiedOwner = user?.role === 'farmer' && !user?.verified && item && String(item.farmerId) === String(user.id)
+
+  // Reviews load independently of the produce fetch so purchasers can reach a sold
+  // listing's reviews (and their own write form) even when the item itself errored.
+  useEffect(() => {
+    let alive = true
+    getListingReviews(id)
+      .then((rd) => {
+        if (alive) setReviewData(rd)
+      })
+      .catch(() => {
+        if (alive) setReviewData(null)
+      })
+    return () => {
+      alive = false
+    }
+  }, [id])
 
   useEffect(() => {
     let alive = true
@@ -89,11 +94,6 @@ export default function ProduceDetail() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [item?.id, item?.cropType, isBuyerLike])
 
-  const flash = (msg) => {
-    setToast('')
-    requestAnimationFrame(() => setToast(msg))
-  }
-
   const refresh = async () => {
     try {
       const fresh = await (user?.role === 'farmer'
@@ -101,60 +101,56 @@ export default function ProduceDetail() {
         : getProduceById(id))
       setItem(fresh)
     } catch (e) {
-      flash(e.message || 'Could not refresh the listing.')
+      flashToast(e.message || 'Could not refresh the listing.')
     }
   }
 
   const onDelete = async () => {
-    if (!window.confirm('Delete this listing? This cannot be undone.')) return
+    if (!window.confirm('Delete this listing? It will be hidden from the market (your records are kept).')) return
     try {
       await deleteListing(id)
       navigate('/marketplace')
     } catch (e) {
-      flash(e.message || 'Could not delete the listing.')
+      flashToast(e.message || 'Could not delete the listing.')
     }
   }
 
   const onDeactivate = async () => {
     try {
       await setListingStatus(id, 'deactivated')
-      flash('Listing deactivated. It is hidden from the market.')
+      flashToast('Listing deactivated. It is hidden from the market.')
       setEditing(false)
       refresh()
     } catch (e) {
-      flash(e.message || 'Could not deactivate the listing.')
+      flashToast(e.message || 'Could not deactivate the listing.')
     }
   }
 
   const onActivate = async () => {
     try {
       await setListingStatus(id, 'open')
-      flash('Listing activated — buyers can see it again.')
+      flashToast('Listing activated — buyers can see it again.')
       refresh()
     } catch (e) {
-      flash(e.message || 'Could not activate the listing.')
+      flashToast(e.message || 'Could not activate the listing.')
     }
   }
 
   if (error) {
     return (
-      <Layout user={user} activeId="">
-        <div className="mx-auto w-full max-w-3xl py-12 text-center">
-          <p className="font-serif text-2xl font-semibold text-ink">Produce not available</p>
-          <p className="mt-2 font-sans text-sm text-muted">{error}</p>
-          <Link to="/" className="mt-6 inline-block rounded-[10px] bg-leaf px-5 py-2.5 font-sans text-xs font-bold text-white transition hover:bg-leaf-dark">
-            Back to Home
-          </Link>
-        </div>
-      </Layout>
+      <div className="mx-auto w-full max-w-3xl py-12 text-center">
+        <p className="font-serif text-2xl font-semibold text-ink">Produce not available</p>
+        <p className="mt-2 font-sans text-sm text-muted">{error}</p>
+        <Link to="/" className="mt-6 inline-block rounded-[10px] bg-leaf px-5 py-2.5 font-sans text-xs font-bold text-white transition hover:bg-leaf-dark">
+          Back to Home
+        </Link>
+      </div>
     )
   }
 
   if (!item) {
     return (
-      <Layout user={user} activeId="">
-        <div className="py-12 text-center font-sans text-sm text-muted">Loading produce…</div>
-      </Layout>
+      <div className="py-12 text-center font-sans text-sm text-muted">Loading produce…</div>
     )
   }
 
@@ -164,7 +160,12 @@ export default function ProduceDetail() {
   const { emoji } = productArt(item.cropType)
   const title = item.cropType ? item.cropType.charAt(0).toUpperCase() + item.cropType.slice(1) : 'Produce'
 
-  const statusInfo = item.status ? STATUS_LABELS[item.status] || { label: item.status, cls: 'bg-paper text-muted' } : null
+  const statusInfo =
+    isBuyerLike && item.status === 'pre_committed' && !item.committedByMe
+      ? null
+      : item.status
+        ? STATUS_LABELS[item.status] || { label: item.status, cls: 'bg-paper text-muted' }
+        : null
 
   const locParts = [item.location, item.region, item.district].filter(Boolean)
 
@@ -179,10 +180,9 @@ export default function ProduceDetail() {
       .join(' · ')
 
   return (
-    <Layout user={user} activeId="marketplace">
-      <div className="w-full">
-        <Link
-          to="/marketplace"
+    <div className="w-full">
+      <Link
+        to="/marketplace"
           className="mb-5 inline-block rounded-[10px] border border-line bg-white px-3.5 py-2 font-sans text-xs font-bold text-ink transition hover:bg-paper"
         >
           ← Back
@@ -349,44 +349,45 @@ export default function ProduceDetail() {
                   </button>
                 )}
               </>
-            ) : isBuyerLike && item.status === 'open' ? (
+            ) : isBuyerLike && ['open', 'pre_committed'].includes(item.status) ? (
               <>
-                <div className="flex flex-wrap items-center gap-3">
-                  <div className="flex items-center gap-1.5 rounded-[10px] border border-line bg-white p-1.5">
+                {cartLine ? (
+                  <div className="w-min flex items-center gap-1.5 rounded-[10px] border border-line bg-white p-1.5">
                     <button
                       type="button"
-                      onClick={() => setQty((q) => Math.max(1, q - 1))}
+                      onClick={() => cart.setQty(item.id, -1)}
                       aria-label="Decrease quantity"
                       className="h-8 w-8 rounded-md text-ink transition hover:bg-paper"
                     >
                       −
                     </button>
-                    <span className="min-w-[2.5rem] text-center font-sans text-base font-bold text-ink">{qty}</span>
+                    <span className="min-w-[2.5rem] text-center font-sans text-base font-bold text-ink">{cartLine.qty}</span>
                     <button
                       type="button"
-                      onClick={() => setQty((q) => Math.min(item.quantity || 999, q + 1))}
+                      onClick={() => cart.setQty(item.id, 1)}
                       aria-label="Increase quantity"
                       className="h-8 w-8 rounded-md text-ink transition hover:bg-paper"
                     >
                       +
                     </button>
                   </div>
+                ) : (
                   <button
                     type="button"
                     onClick={() => {
                       if (!user?.verified) {
-                        flash('Verify your profile to place an order.')
+                        flashToast('Verify your profile to place an order.')
                         navigate('/verify')
                         return
                       }
                       cart.add(item, qty)
-                      flash(`${title} added to cart`)
+                      flashToast(`${title} added to cart`)
                     }}
-                    className="flex-1 rounded-[10px] bg-leaf px-5 py-3 font-sans text-sm font-bold text-white transition hover:bg-leaf-dark sm:flex-none sm:px-8"
+                    className="rounded-[10px] bg-leaf px-5 py-3 font-sans text-sm font-bold text-white transition hover:bg-leaf-dark sm:px-8"
                   >
                     Add {qty} to cart · GHS {((item.askingPrice || 0) * qty).toFixed(2).replace(/\.00$/, '')}
                   </button>
-                </div>
+                )}
                 {!user?.verified && (
                   <p className="font-sans text-xs text-muted">
                     <Link to="/verify" className="font-semibold text-leaf hover:underline">
@@ -497,6 +498,18 @@ export default function ProduceDetail() {
               </div>
             </Panel>
 
+        {reviewData && (reviewData.reviews.length > 0 || reviewData.canReview || reviewData.myReview) && (
+          <ReviewsPanel
+            data={reviewData}
+            listingId={item.id}
+            flashToast={flashToast}
+            onSaved={async () => {
+              const rd = await getListingReviews(item.id)
+              setReviewData(rd)
+            }}
+          />
+        )}
+
         {isBuyerLike && similar.length > 0 && (
           <section className="mt-10">
             <h2 className="font-serif text-xl font-semibold tracking-[-.03em] text-ink">Similar produce</h2>
@@ -509,32 +522,148 @@ export default function ProduceDetail() {
           </section>
         )}
       </div>
-      {toast && (
-        <div className="fixed bottom-6 right-6 z-50 max-w-xs rounded-[10px] bg-leaf-dark px-4 py-3.5 font-sans text-xs text-white shadow">
-          {toast}
-        </div>
-      )}
-    </Layout>
+    )
+  }
+
+function StarRow({ value = 0, onChange, interactive = false }) {
+  const [hover, setHover] = useState(0)
+  const shown = interactive ? hover || value : value
+  return (
+    <div className="flex items-center gap-0.5">
+      {[1, 2, 3, 4, 5].map((n) => (
+        <button
+          key={n}
+          type="button"
+          aria-label={`${n} star${n === 1 ? '' : 's'}`}
+          disabled={!interactive}
+          onClick={() => onChange?.(n)}
+          onMouseEnter={() => interactive && setHover(n)}
+          onMouseLeave={() => interactive && setHover(0)}
+          className={`text-2xl leading-none transition ${
+            n <= shown ? 'text-amber-500' : 'text-line'
+          } ${interactive ? 'cursor-pointer' : 'cursor-default'}`}
+        >
+          ★
+        </button>
+      ))}
+    </div>
   )
 }
 
-function Layout({ user, activeId, children }) {
-  const navigate = useNavigate()
-  const isBuyerAccount = ['buyer', 'market_seller'].includes(user?.role)
-  const links = navLinks({ isBuyerAccount, isFarmer: user?.role === 'farmer' })
+function ReviewForm({ listingId, initial, onSaved, flashToast }) {
+  const [rating, setRating] = useState(initial?.rating ?? 0)
+  const [comment, setComment] = useState(initial?.comment ?? '')
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState('')
+  const submit = async (e) => {
+    e.preventDefault()
+    if (!rating) {
+      setErr('Pick a star rating.')
+      return
+    }
+    setBusy(true)
+    setErr('')
+    try {
+      await postReview(listingId, { rating, comment })
+      await onSaved()
+      flashToast(initial ? 'Review updated.' : 'Review posted. Thanks!')
+    } catch (e2) {
+      setErr(e2.message || 'Could not save your review.')
+    } finally {
+      setBusy(false)
+    }
+  }
   return (
-    <div className={isBuyerAccount ? 'min-h-screen bg-paper' : 'flex min-h-screen bg-paper'}>
-      {isBuyerAccount ? (
-        <HorizontalNav links={links} activeId={activeId} />
-      ) : (
-        <Sidebar
-          user={user}
-          links={links}
-          activeId={activeId}
-          onNavigate={() => navigate('/')}
-        />
+    <form onSubmit={submit} className="mt-4 rounded-[10px] border border-line bg-[#fbfcfa] p-4">
+      <div className="flex items-center justify-between">
+        <span className="font-sans text-[11px] font-bold uppercase tracking-[.06em] text-leaf">
+          {initial ? 'Update your review' : 'Verified purchase · write a review'}
+        </span>
+      </div>
+      <div className="mt-2">
+        <StarRow value={rating} interactive onChange={setRating} />
+      </div>
+      <textarea
+        value={comment}
+        onChange={(e) => setComment(e.target.value)}
+        maxLength={500}
+        rows={3}
+        placeholder="How was the quality, freshness, and packaging?"
+        className="mt-2 w-full rounded-[8px] border border-line bg-white p-2.5 font-sans text-sm text-ink outline-none focus:border-leaf"
+      />
+      <div className="mt-2 flex items-center justify-between gap-3">
+        <span className="font-sans text-[11px] text-muted">{comment.length}/500</span>
+        {err && <span className="flex-1 text-right font-sans text-xs text-red-600">{err}</span>}
+        <button
+          type="submit"
+          disabled={busy}
+          className="rounded-[8px] bg-leaf px-4 py-2 font-sans text-xs font-bold text-white transition hover:bg-leaf-dark disabled:opacity-60"
+        >
+          {busy ? 'Saving…' : initial ? 'Update review' : 'Post review'}
+        </button>
+      </div>
+    </form>
+  )
+}
+
+function ReviewsPanel({ data, listingId, flashToast, onSaved }) {
+  const count = data.reviewCount ?? data.reviews.length
+  return (
+    <Panel className="mt-6">
+      <div className="flex items-center gap-5">
+        <div className="text-center">
+          <span className="block font-serif text-4xl font-semibold leading-none text-ink">
+            {data.rating != null ? data.rating.toFixed(1) : '—'}
+          </span>
+          <div className="mt-1">
+            <StarRow value={Math.round(data.rating ?? 0)} />
+          </div>
+        </div>
+        <div>
+          <h2 className="font-serif text-[22px] font-semibold tracking-[-.02em] text-ink">Reviews</h2>
+          <p className="font-sans text-xs text-muted">
+            {count} review{count === 1 ? '' : 's'} from verified purchases
+          </p>
+        </div>
+      </div>
+
+      {data.canReview && (
+        <ReviewForm listingId={listingId} initial={data.myReview} onSaved={onSaved} flashToast={flashToast} />
       )}
-      <main className="mx-auto w-full max-w-[1320px] flex-1 px-4 py-6 md:px-8 md:py-7">{children}</main>
-    </div>
+
+      {data.reviews.length > 0 && (
+        <ul className="mt-4 space-y-3">
+          {data.reviews.map((rv) => (
+            <li key={rv.id} className="rounded-lg border border-line bg-white p-3.5">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-leaf/10 font-sans text-sm font-bold text-leaf">
+                    {rv.buyerName ? rv.buyerName.charAt(0).toUpperCase() : '✓'}
+                  </span>
+                  <span className="truncate font-sans text-sm font-bold text-ink">{rv.buyerName || 'Verified buyer'}</span>
+                </div>
+                <span className="shrink-0 font-sans text-[11px] text-muted">
+                  {new Date(rv.createdAt).toLocaleDateString()}
+                </span>
+              </div>
+              <div className="mt-1.5">
+                <StarRow value={rv.rating} />
+              </div>
+              {rv.comment && (
+                <p className="mt-1.5 whitespace-pre-line font-sans text-sm leading-relaxed text-ink/80">{rv.comment}</p>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+    </Panel>
+  )
+}
+
+export default function ProduceDetail() {
+  return (
+    <AppShell activeId="marketplace">
+      <ProduceDetailContent />
+    </AppShell>
   )
 }

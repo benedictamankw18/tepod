@@ -8,21 +8,29 @@ import Empty from '../components/Empty'
 import Modal from '../components/Modal'
 import ListingForm from '../components/ListingForm'
 import SearchableSelect from '../components/SearchableSelect'
-import { getBanners, getProduce } from '../lib/api'
+import { getBanners, getListings, getProduce, getMyPurchases } from '../lib/api'
+import { STATUS_LABELS } from '../lib/statusLabels'
 import { useWishlist } from '../lib/app'
 import { useCrops } from '../lib/crops'
 
 function FarmerMarketplace() {
-  const { user, market, refreshMarket, flashToast } = useAppShell()
+  const { user, flashToast } = useAppShell()
   const { crops } = useCrops()
   const navigate = useNavigate()
+  const [mine, setMine] = useState(null)
+  const [error, setError] = useState('')
   const [query, setQuery] = useState('')
   const [cropFilter, setCropFilter] = useState('')
   const [showForm, setShowForm] = useState(false)
   const [searchParams, setSearchParams] = useSearchParams()
 
+  const loadMine = () =>
+    getListings()
+      .then((list) => setMine(Array.isArray(list) ? list.filter((l) => String(l.farmerId) === String(user.id)) : []))
+      .catch((e) => setError(e.message))
+
   useEffect(() => {
-    if (!market) refreshMarket()
+    loadMine()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -34,9 +42,7 @@ function FarmerMarketplace() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const openListings = (market || []).filter(
-    (l) => String(l.farmerId) === String(user.id),
-  )
+  const openListings = mine || []
   const filtered = openListings.filter(
     (l) =>
       (!query || `${l.cropType} ${l.location}`.toLowerCase().includes(query.toLowerCase())) &&
@@ -74,6 +80,23 @@ function FarmerMarketplace() {
         </button>
       </header>
 
+      {!user?.verified && (
+        <div className="rounded-[18px] border border-leaf/40 bg-white p-6">
+          <h2 className="font-serif text-[23px] font-semibold tracking-[-.04em] text-ink">
+            Finish setting up your farmer account
+          </h2>
+          <p className="mt-1 font-sans text-sm text-muted">
+            Verify your farmer profile before you can list produce.
+          </p>
+          <Link
+            to="/verify"
+            className="mt-4 inline-block rounded-[10px] bg-leaf px-4 py-2.5 font-sans text-sm font-bold text-white transition hover:bg-leaf-dark"
+          >
+            Verify my profile
+          </Link>
+        </div>
+      )}
+
       <div className="mb-1 flex flex-col gap-2 sm:flex-row">
         <input
           value={query}
@@ -90,14 +113,26 @@ function FarmerMarketplace() {
         />
       </div>
 
-      {!market ? (
+      {error && (
+        <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 font-sans text-sm text-red-700">
+          {error}
+        </div>
+      )}
+
+      {!mine ? (
         <Empty>Loading your produce…</Empty>
       ) : !openListings.length ? (
         <Empty>You haven't listed any produce yet. Use + New listing to publish your first harvest.</Empty>
       ) : filtered.length ? (
         <div className="grid grid-cols-2 gap-3.5 md:grid-cols-3 xl:grid-cols-4">
           {filtered.map((l) => (
-            <ProductCard key={l.id} item={l} viewOnly onView={() => navigate(`/produce/${l.id}`)} />
+            <ProductCard
+              key={l.id}
+              item={l}
+              viewOnly
+              onView={() => navigate(`/produce/${l.id}`)}
+              statusChip={l.status !== 'open' ? STATUS_LABELS[l.status]?.label : null}
+            />
           ))}
         </div>
       ) : (
@@ -110,7 +145,7 @@ function FarmerMarketplace() {
           onCancel={() => setShowForm(false)}
           onDone={() => {
             setShowForm(false)
-            refreshMarket()
+            loadMine()
             flashToast('Listing published')
           }}
         />
@@ -129,13 +164,24 @@ function BuyerMarketplace() {
   const [sort, setSort] = useState('nearest')
   const { ids: wished, toggle: toggleWishlist } = useWishlist(user)
   const [showWishlistOnly, setShowWishlistOnly] = useState(false)
-  const [banner, setBanner] = useState(null)
+  const [banners, setBanners] = useState(null)
+  const [purchases, setPurchases] = useState([])
+
+  useEffect(() => {
+    let alive = true
+    getMyPurchases()
+      .then((list) => alive && setPurchases(Array.isArray(list) ? list : []))
+      .catch(() => alive && setPurchases([]))
+    return () => {
+      alive = false
+    }
+  }, [])
 
   useEffect(() => {
     let alive = true
     getBanners()
-      .then((list) => alive && setBanner(list && list.length ? list[0] : null))
-      .catch(() => alive && setBanner(null))
+      .then((list) => alive && setBanners(list || []))
+      .catch(() => alive && setBanners([]))
     return () => {
       alive = false
     }
@@ -181,7 +227,7 @@ function BuyerMarketplace() {
 
   return (
     <div className="space-y-5">
-      <HeroBanner banner={banner} />
+      <HeroBanner banners={banners || []} />
 
       <header className="flex items-end justify-between gap-4">
         <div>
@@ -266,7 +312,7 @@ function BuyerMarketplace() {
       ) : filtered.length === 0 ? (
         <div className="py-10 text-center font-sans text-sm text-muted">
           {feed.length === 0
-            ? 'No open produce right now.'
+            ? 'No produce available right now.'
             : showWishlistOnly
               ? 'No items in your wishlist yet.'
               : 'No produce matches that search yet.'}
@@ -293,6 +339,63 @@ function BuyerMarketplace() {
             />
           ))}
         </div>
+      )}
+
+      {purchases.length > 0 && (
+        <section className="mt-8">
+          <h2 className="font-serif text-xl font-semibold tracking-[-.03em] text-ink">My purchases</h2>
+          <p className="mt-1 font-sans text-xs text-muted">
+            Items you bought. You can review a product once its payment has been confirmed.
+          </p>
+          <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            {purchases.map((tx) => {
+              const pic = Array.isArray(tx.imageUrls) ? tx.imageUrls[0] : null
+              const paid = tx.paymentStatus === 'paid'
+              const status = STATUS_LABELS[tx.paymentStatus] || { label: tx.paymentStatus, cls: 'bg-paper text-muted' }
+              return (
+                <div key={tx.id} className="flex gap-3 rounded-[12px] border border-line bg-white p-3">
+                  <div className="h-14 w-14 shrink-0 overflow-hidden rounded-lg bg-[#f2f0ea]">
+                    {pic ? (
+                      <img src={pic} alt="" className="h-full w-full object-cover" />
+                    ) : (
+                      <span className="grid h-full w-full place-items-center text-2xl" aria-hidden="true">
+                        🥬
+                      </span>
+                    )}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <strong
+                      className="block cursor-pointer truncate font-sans text-sm font-bold text-ink hover:text-leaf"
+                      onClick={() => navigate(`/produce/${tx.listingId}`)}
+                    >
+                      {String(tx.cropType || 'Produce').charAt(0).toUpperCase() + String(tx.cropType || '').slice(1)}
+                      {tx.quantity != null && ` · ${tx.quantity}${tx.unit ? ` ${tx.unit}` : ''}`}
+                    </strong>
+                    <span className="block truncate font-sans text-xs text-muted">
+                      {tx.farmerName || 'Farmer'} · GHS {tx.agreedPrice}
+                    </span>
+                    <div className="mt-1 flex items-center justify-between gap-2">
+                      <span className={`inline-block rounded-full px-2 py-0.5 font-sans text-[10px] font-bold capitalize ${status.cls}`}>
+                        {status.label}
+                      </span>
+                      {paid ? (
+                        <button
+                          type="button"
+                          onClick={() => navigate(`/produce/${tx.listingId}`)}
+                          className="rounded-[7px] bg-leaf px-2.5 py-1 font-sans text-[11px] font-bold text-white transition hover:bg-leaf-dark"
+                        >
+                          Review
+                        </button>
+                      ) : (
+                        <span className="font-sans text-[11px] text-muted">Review after payment</span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </section>
       )}
 
       {!user.verified && (

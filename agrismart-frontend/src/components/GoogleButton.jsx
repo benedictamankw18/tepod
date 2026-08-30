@@ -18,7 +18,7 @@ const ensureInitialized = (callback) => {
 }
 
 // Renders a Google Sign-In button that exchanges the returned ID token for an
-// AgriSmart session via POST /api/auth/google. role/buyerType are used only when
+// NKABOM AGRILINK session via POST /api/auth/google. role/buyerType are used only when
 // auto-registering a brand-new Google account.
 //
 // The button is shown as soon as the Google Identity Services script is available.
