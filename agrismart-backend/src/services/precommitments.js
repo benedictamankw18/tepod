@@ -19,7 +19,9 @@ async function ensureTransaction(pc) {
     if (existing) return { pc, tx: existing };
   }
   const listing = await listingsRepo.getListing(pc.listingId);
-  const price = pc.agreedPrice != null ? pc.agreedPrice : pc.offeredPrice;
+  // The payment record opens at the basket total (per-unit price × quantity).
+  const unitPrice = pc.agreedPrice != null ? pc.agreedPrice : pc.offeredPrice;
+  const price = Number(unitPrice) * Number(pc.quantity || 1);
   const commission = await settingsRepo.getCommission();
   const { commission: commissionAmount, net: netAmount } = computeCommission(commission, price);
   const tx = await transactionsRepo.createTransaction({
@@ -53,8 +55,9 @@ async function ensureTransaction(pc) {
   return { pc: linked, tx };
 }
 
-// Deliver + paid means the deal is over: mark the commitment completed, the listing
-// sold, and tell both sides. Returns true when a completion happened.
+// Deliver + paid means the deal is over: release the farmer's money (escrow), mark
+// the commitment completed, the listing sold, and tell both sides. Returns true when
+// a completion happened.
 async function attemptComplete(pc, tx) {
   if (!pc) return false;
   if (pc.status !== "delivered") return false;
@@ -65,6 +68,18 @@ async function attemptComplete(pc, tx) {
   const listing = await listingsRepo.getListing(pc.listingId);
   const buyer = await usersRepo.getUser(pc.buyerId);
   const farmer = await usersRepo.getUser(listing.farmerId);
+
+  // Escrow release: hand the farmer their net before announcing completion. Failure
+  // never blocks the sale - the money stays held for an admin to resolve.
+  const settings = await settingsRepo.getPayments();
+  if (settings.payoutMode === "auto" && ["held", "funds_collected"].includes(tx.escrowStatus)) {
+    try {
+      await require("./payments").releaseToFarmer(tx, farmer);
+    } catch (err) {
+      console.error(`[payout] failed for transaction ${tx.id}: ${err.message}`);
+    }
+  }
+
   const cropType = listing.cropType;
   const buyerParams = { cropType, price: tx.agreedPrice };
   await notificationsRepo.notify({

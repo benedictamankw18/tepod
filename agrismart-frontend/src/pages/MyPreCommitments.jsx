@@ -7,11 +7,12 @@ import {
   getMyPreCommitments,
   respondPrecommitment,
   fulfillPrecommitment,
-  depositTransaction,
-  payTransaction,
   getTransaction,
   getTransportRequestsForPreCommitment,
   createTransportRequest,
+  getPaymentsConfig,
+  chargeTransaction,
+  confirmPayment,
 } from '../lib/api'
 
 const STATUS_TAG = {
@@ -33,15 +34,56 @@ const ACTIVE = ['accepted', 'preparing', 'ready', 'delivered']
 
 const ghc = (n) => `GHS ${Number(n || 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}`
 
-function BuyerCommitmentCard({ pc, busy, onAct, onMutate }) {
+const ESCROW_LABEL = {
+  funds_collected: 'Funds collected — held in escrow',
+  held: 'Funds held in escrow — released on delivery',
+  released: 'Escrow released to farmer',
+  refunded: 'Escrow refunded',
+}
+
+function BuyerCommitmentCard({ pc, payConfig, busy, onAct, onMutate }) {
   const { flashToast } = useAppShell()
   const [tx, setTx] = useState(null)
   const [transport, setTransport] = useState(null)
   const [deposit, setDeposit] = useState('')
+  const [pendingPayment, setPendingPayment] = useState(null)
   const [working, setWorking] = useState(false)
+  const [gaveUp, setGaveUp] = useState(false)
 
   const inActive = ACTIVE.includes(pc.status)
-  const depositShort = pc.agreedPrice ? Math.max(0, Math.round(pc.agreedPrice * 0.25 * 100) / 100) : 0
+  const depositShort = pc.agreedPrice
+    ? Math.max(0, Math.round((pc.agreedPrice * (pc.quantity || 1)) * (payConfig?.escrowEnabled ? (payConfig.depositPercent || 0) : 0.25) * 100) / 100)
+    : 0
+
+  // The pending paystack checkout survives page reloads in localStorage so the poll
+  // below can resume on the next visit and still settle the sale automatically.
+  const storageKey = pc.transactionId ? `nkabom:pending-payment:${pc.transactionId}` : null
+  const savePending = (paymentId) => {
+    if (!storageKey || !paymentId) return
+    try {
+      window.localStorage.setItem(storageKey, JSON.stringify({ paymentId }))
+    } catch {
+      /* storage unavailable - poll still works while the tab stays open */
+    }
+  }
+  const clearPending = () => {
+    if (!storageKey) return
+    try {
+      window.localStorage.removeItem(storageKey)
+    } catch {
+      /* noop */
+    }
+  }
+  const readPending = () => {
+    if (!storageKey) return null
+    try {
+      const raw = window.localStorage.getItem(storageKey)
+      const parsed = raw ? JSON.parse(raw) : null
+      return parsed && parsed.paymentId ? parsed : null
+    } catch {
+      return null
+    }
+  }
 
   useEffect(() => {
     if (!inActive) return
@@ -68,6 +110,106 @@ function BuyerCommitmentCard({ pc, busy, onAct, onMutate }) {
       onMutate()
     } catch (err) {
       flashToast(err.message || 'Something went wrong.')
+    } finally {
+      setWorking(false)
+    }
+  }
+
+  // Start a Paystack charge. Simulated mode settles instantly; live mode opens the
+  // Paystack checkout in a new tab and leaves a pending payment to confirm.
+  const startCharge = async (kind, amount) => {
+    setWorking(true)
+    try {
+      const res = await chargeTransaction(tx.id, {
+        kind,
+        ...(kind === 'deposit' ? { amount: amount || undefined } : {}),
+      })
+      if (res.simulated) {
+        setTx(res.transaction)
+        flashToast(kind === 'deposit' ? 'Deposit paid. Thanks!' : 'Payment confirmed. Thanks!')
+        if (res.transaction?.paymentStatus === 'paid') onMutate()
+        return
+      }
+      setPendingPayment(res.payment)
+      setGaveUp(false)
+      if (res.payment?.authorizationUrl) {
+        savePending(res.payment.id)
+        window.open(res.payment.authorizationUrl, '_blank', 'noopener,noreferrer')
+      }
+      flashToast('Checkout opened — complete the payment, then confirm here.')
+    } catch (err) {
+      flashToast(err.message || 'Could not start the payment.')
+    } finally {
+      setWorking(false)
+    }
+  }
+
+  // Live payments: once a Paystack checkout is open, poll confirmPayment so the
+  // sale settles automatically the moment Paystack reports success. The pending id
+  // is also read back from localStorage so the poll resumes after a page reload.
+  // A 202 { status: "pending" } response just means "keep waiting" - only a settled
+  // payment (200) or a terminal error ends the loop.
+  useEffect(() => {
+    if (payConfig?.simulated) return
+    const resumed = pendingPayment || readPending()
+    if (!resumed?.id) return
+    let stop = false
+    let attempts = 0
+    const MAX_ATTEMPTS = 30
+    const tick = async () => {
+      if (stop) return
+      attempts += 1
+      try {
+        const res = await confirmPayment(resumed.id)
+        if (stop) return
+        if (res?.status === 'pending') {
+          if (attempts >= MAX_ATTEMPTS) {
+            setGaveUp(true)
+            return
+          }
+          setTimeout(tick, 3000)
+          return
+        }
+        clearPending()
+        setGaveUp(false)
+        setTx(res.tx)
+        setPendingPayment(null)
+        flashToast('Payment confirmed. Thanks!')
+        if (res.tx?.paymentStatus === 'paid') onMutate()
+      } catch (err) {
+        if (!stop && attempts < MAX_ATTEMPTS) {
+          setTimeout(tick, 3000)
+        } else if (!stop) {
+          setGaveUp(true)
+        }
+      }
+    }
+    const timer = setTimeout(tick, 3000)
+    return () => {
+      stop = true
+      clearTimeout(timer)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingPayment, payConfig?.simulated])
+
+  const finishPending = async () => {
+    if (!pendingPayment) return
+    setWorking(true)
+    try {
+      const res = await confirmPayment(pendingPayment.id)
+      if (res?.status === 'pending') {
+        setGaveUp(true)
+        flashToast('Payment hasn\'t cleared yet — keep the checkout window open, then try again.')
+        return
+      }
+      clearPending()
+      setGaveUp(false)
+      setTx(res.tx)
+      setPendingPayment(null)
+      flashToast('Payment confirmed. Thanks!')
+      if (res.tx?.paymentStatus === 'paid') onMutate()
+    } catch (err) {
+      flashToast(err.message || 'Payment not confirmed yet. Please complete it in the checkout window.')
     } finally {
       setWorking(false)
     }
@@ -150,6 +292,11 @@ function BuyerCommitmentCard({ pc, busy, onAct, onMutate }) {
                   <span>Balance</span>
                   <strong className="font-sans text-ink">{ghc(unpaid)}</strong>
                 </div>
+                {tx.escrowStatus && tx.escrowStatus !== 'none' && (
+                  <p className="pt-0.5 text-[11px] font-bold text-leaf-dark">
+                    {ESCROW_LABEL[tx.escrowStatus] || tx.escrowStatus}
+                  </p>
+                )}
                 {tx.paymentStatus === 'paid' && (
                   <p className="pt-0.5 text-[11px] font-bold text-leaf-dark">
                     Fully paid{tx.paidAt ? ` · ${new Date(tx.paidAt).toLocaleDateString()}` : ''}
@@ -159,34 +306,62 @@ function BuyerCommitmentCard({ pc, busy, onAct, onMutate }) {
             )}
           </div>
 
-          {tx && tx.paymentStatus !== 'paid' && (
-            <div className="mt-1 flex items-center gap-2">
-              <input
-                type="number"
-                min="0"
-                step="0.01"
-                value={deposit}
-                placeholder={`Deposit (e.g. ${ghc(depositShort)})`}
-                onChange={(e) => setDeposit(e.target.value)}
-                className="w-full rounded-md border border-line bg-white px-2 py-1 font-sans text-xs text-ink outline-none focus:border-leaf"
-                aria-label="Deposit amount"
-              />
-              <button
-                type="button"
-                disabled={busy || working || !deposit}
-                onClick={() => act(() => depositTransaction(tx.id, Number(deposit)).then(setTx), 'Deposit recorded.')}
-                className="shrink-0 rounded-[8px] border border-leaf px-2 py-1.5 font-sans text-xs font-bold text-leaf-dark transition hover:bg-paper disabled:opacity-50"
-              >
-                Deposit
-              </button>
+          {pendingPayment && (
+            <div className="mt-1 rounded-[8px] border border-line bg-paper p-2 font-sans text-xs text-muted">
+              <p>
+                {payConfig?.simulated
+                  ? 'Payment started. Confirmed automatically once it clears.'
+                  : gaveUp
+                    ? 'Payment still pending — complete it in the Paystack window that opened, then tap Confirm below. Your payment clears the moment Paystack reports it.'
+                    : `Waiting for Paystack to confirm your ${ghc(pendingPayment.amount)} payment…`}
+              </p>
               <button
                 type="button"
                 disabled={busy || working}
-                onClick={() => act(() => payTransaction(tx.id).then(setTx), 'Payment confirmed. Thanks!')}
-                className="shrink-0 rounded-[8px] bg-leaf px-2 py-1.5 font-sans text-xs font-bold text-white transition hover:bg-leaf-dark disabled:opacity-50"
+                onClick={finishPending}
+                className="mt-1.5 rounded-[8px] bg-leaf px-2 py-1.5 font-sans text-xs font-bold text-white transition hover:bg-leaf-dark disabled:opacity-50"
               >
-                Pay balance
+                Confirm {payConfig?.simulated ? 'payment' : 'completed payment'}
               </button>
+            </div>
+          )}
+
+          {tx && tx.paymentStatus !== 'paid' && !pendingPayment && (
+            <div className="mt-1 space-y-2">
+              {payConfig?.escrowEnabled && (
+                <p className="rounded-[8px] bg-paper px-2 py-1.5 font-sans text-[11px] leading-snug text-leaf-dark">
+                  Your {payConfig.depositPercent}% deposit is held securely in escrow and only released to
+                  the farmer after you confirm delivery.
+                </p>
+              )}
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={deposit}
+                  placeholder={`Deposit (e.g. ${ghc(depositShort)})`}
+                  onChange={(e) => setDeposit(e.target.value)}
+                  className="w-full rounded-md border border-line bg-white px-2 py-1 font-sans text-xs text-ink outline-none focus:border-leaf"
+                  aria-label="Deposit amount"
+                />
+                <button
+                  type="button"
+                  disabled={busy || working || !deposit}
+                  onClick={() => startCharge('deposit', Number(deposit))}
+                  className="shrink-0 rounded-[8px] border border-leaf px-2 py-1.5 font-sans text-xs font-bold text-leaf-dark transition hover:bg-paper disabled:opacity-50"
+                >
+                  Deposit
+                </button>
+                <button
+                  type="button"
+                  disabled={busy || working}
+                  onClick={() => startCharge('balance')}
+                  className="shrink-0 rounded-[8px] bg-leaf px-2 py-1.5 font-sans text-xs font-bold text-white transition hover:bg-leaf-dark disabled:opacity-50"
+                >
+                  Pay balance
+                </button>
+              </div>
             </div>
           )}
 
@@ -250,6 +425,11 @@ function MyPreCommitmentsContent() {
   const isBuyerAccount = user?.role === 'buyer' || user?.role === 'market_seller'
   const [myPcs, setMyPcs] = useState(null)
   const [busy, setBusy] = useState(false)
+  const [payConfig, setPayConfig] = useState(null)
+
+  useEffect(() => {
+    getPaymentsConfig().then(setPayConfig).catch(() => setPayConfig(null))
+  }, [])
 
   const load = () =>
     getMyPreCommitments()
@@ -332,7 +512,7 @@ function MyPreCommitmentsContent() {
                   return rank !== 0 ? rank : new Date(b.createdAt) - new Date(a.createdAt)
                 })
                 .map((pc) => (
-                  <BuyerCommitmentCard key={pc.id} pc={pc} busy={busy} onAct={actOnPc} onMutate={load} />
+                  <BuyerCommitmentCard key={pc.id} pc={pc} payConfig={payConfig} busy={busy} onAct={actOnPc} onMutate={load} />
                 ))}
             </div>
           )}

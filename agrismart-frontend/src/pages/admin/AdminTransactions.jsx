@@ -6,6 +6,8 @@ import { Page, Loader, Empty, Badge, Btn, Table, Td, money, dateOnly, shortId } 
 const STATUSES = ['pending', 'paid', 'overdue', 'disputed']
 const TABS = ['', ...STATUSES]
 const TONE = { pending: 'muted', paid: 'green', overdue: 'amber', disputed: 'red' }
+const ESCROW_LABEL = { funds_collected: 'collected', held: 'held', released: 'released', refunded: 'refunded', none: 'off' }
+const ESCROW_TONE = { funds_collected: 'amber', held: 'amber', released: 'green', refunded: 'red', none: 'muted' }
 
 export default function AdminTransactions() {
   const { flash } = useAdmin()
@@ -75,7 +77,7 @@ export default function AdminTransactions() {
       ) : rows.length === 0 ? (
         <Empty title="No transactions" hint="Sales appear here once a deal is confirmed." />
       ) : (
-        <Table head={['Ref', 'Crop', 'Buyer', 'Farmer', 'Amount', 'Fee', 'Farmer net', 'Payment', 'Due', 'Actions']}>
+        <Table head={['Ref', 'Crop', 'Buyer', 'Farmer', 'Amount', 'Fee', 'Farmer net', 'Payment', 'Escrow', 'Due', 'Actions']}>
           {rows.map((tx) => (
             <tr key={tx.id} className="hover:bg-paper/40">
               <Td className="text-muted">{shortId(tx.id)}</Td>
@@ -87,6 +89,14 @@ export default function AdminTransactions() {
               <Td className="font-semibold">{money(tx.netAmount != null ? tx.netAmount : tx.agreedPrice)}</Td>
               <Td>
                 <Badge tone={TONE[tx.paymentStatus] || 'muted'}>{tx.paymentStatus}</Badge>
+              </Td>
+              <Td>
+                <Badge tone={ESCROW_TONE[tx.escrowStatus || 'none'] || 'muted'}>
+                  {ESCROW_LABEL[tx.escrowStatus || 'none'] || tx.escrowStatus}
+                </Badge>
+                {tx.escrowAmount > 0 && (
+                  <span className="ml-1 font-sans text-[10px] text-muted">{money(tx.escrowAmount)}</span>
+                )}
               </Td>
               <Td>{dateOnly(tx.dueDate)}</Td>
               <Td>

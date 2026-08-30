@@ -6,8 +6,10 @@ export function navLinks({ isBuyerAccount, isFarmer, isAdmin }) {
     ? [
         { id: 'marketplace', label: 'Market place', to: '/' },
         { id: 'precommitments', label: 'My pre-commitments', to: '/precommitments' },
+        { id: 'notifications', label: 'Notifications', to: '/notifications' },
         { id: 'prices', label: 'Price guide', to: '/prices' },
         { id: 'support', label: 'Support', to: '/support' },
+        { id: 'about', label: 'About', to: '/about' },
         { id: 'settings', label: 'Settings', to: '/settings' },
       ]
     : [
@@ -19,8 +21,10 @@ export function navLinks({ isBuyerAccount, isFarmer, isAdmin }) {
               { id: 'farms', label: 'My farms', to: '/farms' },
             ]
           : []),
+        { id: 'notifications', label: 'Notifications', to: '/notifications' },
         { id: 'prices', label: 'Price guide', to: '/prices' },
         { id: 'support', label: 'Support', to: '/support' },
+        { id: 'about', label: 'About', to: '/about' },
         { id: 'settings', label: 'Settings', to: '/settings' },
       ]
   if (isAdmin) {

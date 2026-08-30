@@ -5,6 +5,7 @@ import Register from './pages/Register'
 import ForgotPassword from './pages/ForgotPassword'
 import TermsPage from './pages/Terms'
 import PrivacyPage from './pages/Privacy'
+import AboutPage from './pages/About'
 import DashboardPage from './pages/Dashboard'
 import MarketplacePage from './pages/Marketplace'
 import ActivityPage from './pages/Activity'
@@ -13,6 +14,7 @@ import PricesPage from './pages/Prices'
 import SupportPage from './pages/Support'
 import BuyerVerification from './pages/BuyerVerification'
 import MyPreCommitmentsPage from './pages/MyPreCommitments'
+import NotificationsPage from './pages/Notifications'
 import AdminBanners from './pages/AdminBanners'
 import AdminShell from './components/AdminShell'
 import AdminOverview from './pages/admin/AdminOverview'
@@ -49,6 +51,7 @@ export default function App() {
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/terms" element={<TermsPage />} />
         <Route path="/privacy" element={<PrivacyPage />} />
+        <Route path="/about" element={<AboutPage />} />
         <Route
           path="/"
           element={
@@ -110,6 +113,14 @@ export default function App() {
           element={
             <ProtectedRoute>
               <MyPreCommitmentsPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/notifications"
+          element={
+            <ProtectedRoute>
+              <NotificationsPage />
             </ProtectedRoute>
           }
         />

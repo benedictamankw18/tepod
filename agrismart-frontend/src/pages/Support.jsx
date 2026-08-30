@@ -49,6 +49,37 @@ function SupportContent() {
 
       <Panel>
         <PanelHead
+          title="How payments work"
+          sub="Funds are collected securely and only released once a sale completes."
+        />
+        <ul className="mb-4 list-inside list-disc space-y-1.5 font-sans text-sm leading-relaxed text-ink">
+          <li>
+            <strong>Deposit at checkout:</strong> when you take an offer you put down a deposit
+            (30% by default) before the farmer prepares your order.
+          </li>
+          <li>
+            <strong>Balance on readiness:</strong> once the produce is weighed and confirmed ready,
+            you pay the remaining balance.
+          </li>
+          <li>
+            <strong>Held in escrow:</strong> your money stays with the platform until you confirm
+            you have received the produce.
+          </li>
+          <li>
+            <strong>Farmer paid out automatically:</strong> on delivery confirmation the farmer
+            receives their earnings (minus commission) to the bank account or mobile-money wallet
+            saved in their settings.
+          </li>
+        </ul>
+        <p className="mb-4 font-sans text-xs leading-relaxed text-muted">
+          Payments run through Paystack and can be made by mobile money, bank or card. If a payout
+          looks off, raise it here and a facilitator will investigate the ledger before anything
+          is released.
+        </p>
+      </Panel>
+
+      <Panel>
+        <PanelHead
           title="Open a support request"
           sub="Tell us what you need help with and a field facilitator will reach out."
         />

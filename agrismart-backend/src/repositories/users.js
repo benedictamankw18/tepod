@@ -70,6 +70,13 @@ const ROW_TO_USER = (r) => ({
   rating: r.rating === null ? null : Number(r.rating),
   ratingCount: r.rating_count,
   createdAt: r.created_at,
+  bankName: r.bank_name || null,
+  bankCode: r.bank_code || null,
+  bankAccountNumber: r.bank_account_number || null,
+  bankAccountName: r.bank_account_name || null,
+  momoProvider: r.momo_provider || null,
+  momoNumber: r.momo_number || null,
+  paystackRecipientCode: r.paystack_recipient_code || null,
 });
 
 // Public-safe view of a user - never exposes the password hash.
@@ -281,10 +288,15 @@ async function updateProfile(id, {
 }
 
 // Update a user's own editable account + profile fields (COALESCE keeps unspecified
-// columns unchanged). Does not touch credentials (see setPassword).
+// columns unchanged). The username may be claimed ONLY by an account that has none
+// ("username is chosen at sign-up" applies afterwards, so a value here simply sets
+// it once and omitting the key leaves it as-is). `email` / `phone` are special:
+// `undefined` leaves them alone, `null` or "" clears them, a string updates them
+// (validated/normalized upstream).
 async function updateAccount(id, {
   name, location, language, buyerType, mobileMoneyProvider, farmSize,
   primaryCrops, purchaseCrops, community, region, district, gpsAddress, address, lat, lng,
+  username, email, phone,
 }) {
   const hasPrimary = Array.isArray(primaryCrops);
   const hasPurchase = Array.isArray(purchaseCrops);
@@ -306,7 +318,8 @@ async function updateAccount(id, {
        gps_address         = COALESCE($13, gps_address),
        address             = COALESCE($14, address),
        lat                 = COALESCE($15, lat),
-       lng                 = COALESCE($16, lng)
+       lng                 = COALESCE($16, lng),
+       username            = COALESCE($17, username)
      WHERE id = $1 RETURNING *`,
     [
       id,
@@ -325,12 +338,32 @@ async function updateAccount(id, {
       (address || "").trim() || undefined,
       lat == null ? undefined : Number(lat),
       lng == null ? undefined : Number(lng),
+      username !== undefined ? normalizeUsername(username) || undefined : undefined,
     ]
   );
   await syncUserCrops(id, {
     primaryCrops: hasPrimary ? normPrimary : undefined,
     purchaseCrops: hasPurchase ? normPurchase : undefined,
   });
+
+  // Contact details join the update only when the caller explicitly touched them:
+  // ""/null clears the column, a value replaces it, and omitting the key leaves the
+  // existing value in place (the COALESCE pattern above cannot express "clear").
+  if (email !== undefined || phone !== undefined) {
+    const sets = [];
+    const params = [id];
+    if (email !== undefined) {
+      sets.push(`email = $${params.length + 1}`);
+      params.push(email ? String(email).toLowerCase() : null);
+    }
+    if (phone !== undefined) {
+      sets.push(`phone = $${params.length + 1}`);
+      params.push(phone ? normalizeE164(phone) : null);
+    }
+    await query(`UPDATE users SET ${sets.join(", ")} WHERE id = $1`, params);
+    const after = await query("SELECT * FROM users WHERE id = $1", [id]);
+    return after.rowCount ? ROW_TO_USER(after.rows[0]) : null;
+  }
   return rows.rowCount ? ROW_TO_USER(rows.rows[0]) : null;
 }
 
@@ -419,10 +452,42 @@ async function updatePhotoUrl(id, photoUrl) {
   return rows.rowCount ? ROW_TO_USER(rows.rows[0]) : null;
 }
 
+// Farmer's escrow payout destination (bank account OR mobile-money wallet). Saves all
+// columns at once so switching method clears the old one; invalidates any cached
+// Paystack recipient because the details changed.
+async function setPayoutAccount(id, { bankName, bankCode, bankAccountNumber, bankAccountName, momoProvider, momoNumber }) {
+  const rows = await query(
+    `UPDATE users SET
+       bank_name = $2, bank_code = $3, bank_account_number = $4, bank_account_name = $5,
+       momo_provider = $6, momo_number = $7,
+       paystack_recipient_code = NULL
+     WHERE id = $1 RETURNING *`,
+    [
+      id,
+      (bankName || "").trim() || null,
+      (bankCode || "").trim() || null,
+      (bankAccountNumber || "").trim() || null,
+      (bankAccountName || "").trim() || null,
+      MOBILE_MONEY.includes(momoProvider) ? momoProvider : null,
+      (momoNumber || "").trim() || null,
+    ]
+  );
+  return rows.rowCount ? ROW_TO_USER(rows.rows[0]) : null;
+}
+
+// Cache the Paystack transfer-recipient code built from the farmer's payout details.
+async function setPayoutRecipient(id, code) {
+  const rows = await query(
+    "UPDATE users SET paystack_recipient_code = $2 WHERE id = $1 RETURNING *",
+    [id, code || null]
+  );
+  return rows.rowCount ? ROW_TO_USER(rows.rows[0]) : null;
+}
+
 module.exports = {
   ROLES, SIGNUP_ROLES, BUYER_TYPES, MOBILE_MONEY, LANGUAGES, normalizeE164, normalizeUsername,
   createUser, getUser, findUserByPhone, findUserByEmail, findUserByUsername, findUserByIdentifier,
   listUsers, rateUser, updateUserVerified, updateUserRole, updateProfile, updateAccount, updatePhotoUrl,
   updateUserAdmin, setUserActive, deleteUser, restoreUser, acceptTerms,
-  setPassword, publicUser,
+  setPassword, publicUser, setPayoutAccount, setPayoutRecipient,
 };

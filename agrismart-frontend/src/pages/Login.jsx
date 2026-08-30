@@ -309,6 +309,20 @@ export default function Login() {
           Register
         </Link>
       </p>
+
+      <p className="mt-4 flex items-center justify-center gap-3 text-center text-xs text-muted">
+        <Link to="/about" className="hover:text-leaf hover:underline">
+          About Us
+        </Link>
+        <span aria-hidden="true">·</span>
+        <Link to="/terms" className="hover:text-leaf hover:underline">
+          Terms
+        </Link>
+        <span aria-hidden="true">·</span>
+        <Link to="/privacy" className="hover:text-leaf hover:underline">
+          Privacy
+        </Link>
+      </p>
     </AuthLayout>
   )
 }

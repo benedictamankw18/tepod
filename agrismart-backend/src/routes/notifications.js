@@ -89,9 +89,14 @@ router.post("/broadcast", requireAuth, requireRole("admin"), async (req, res) =>
  *       200:
  *         description: "{ notifications: [...], unread: n }"
  */
-// GET /api/notifications/me - current user's in-app inbox
+// GET /api/notifications/me - current user's in-app inbox (limit/offset optional)
 router.get("/me", requireAuth, async (req, res) => {
-  res.json(await notificationsRepo.listMyNotifications(req.user.id));
+  res.json(
+    await notificationsRepo.listMyNotifications(req.user.id, {
+      limit: req.query.limit,
+      offset: req.query.offset,
+    })
+  );
 });
 
 /**

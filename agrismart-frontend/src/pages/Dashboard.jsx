@@ -211,7 +211,7 @@ function FarmerReviews({ reviews }) {
         <div>
           <h2 className="font-serif text-[19px] font-semibold tracking-[-.04em] text-ink">Customer reviews</h2>
           <p className="mt-0.5 font-sans text-xs text-muted">
-            {reviews.length} verified review{reviews.length === 1 ? '' : 's'} across your listings
+            {reviews.length} verified customer{reviews.length === 1 ? '' : 's'} have reviewed you
           </p>
         </div>
         <div className="shrink-0 rounded-xl bg-[#f2f0ea] px-4 py-2 text-center">

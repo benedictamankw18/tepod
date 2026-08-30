@@ -7,9 +7,18 @@ const settingsRepo = require("../repositories/systemSettings");
 const precommitmentsRepo = require("../repositories/precommitments");
 const { computeCommission } = require("../services/commission");
 const precommitmentsService = require("../services/precommitments");
+const paymentService = require("../services/payments");
+const paymentsRepo = require("../repositories/payments");
+const paystack = require("../services/paystack");
 const { requireAuth, requireRole } = require("../middleware/auth");
 
 const router = express.Router();
+
+const CHARGE_KINDS = ["deposit", "balance"];
+
+function makeChargeReference(txId, kind) {
+  return `AGL-${txId.replace(/-/g, "").slice(0, 12)}-${kind}-${Date.now()}`;
+}
 
 /**
  * @openapi
@@ -365,6 +374,59 @@ router.post("/:id/dispute", requireAuth, async (req, res) => {
   const tx = await transactionsRepo.markTransactionDisputed(req.params.id);
   if (!tx) return res.status(404).json({ error: "transaction not found" });
   res.json(tx);
+});
+
+// POST /api/transactions/:id/charge - open a Paystack charge (or instantly settle in
+// simulated mode) for a deposit or a balance payment. Deposit amount is floored at
+// the configured escrow percentage when escrow is enabled.
+router.post("/:id/charge", requireAuth, async (req, res) => {
+  const tx = await transactionsRepo.getTransaction(req.params.id);
+  if (!tx) return res.status(404).json({ error: "transaction not found" });
+  if (tx.buyerId !== req.user.id) {
+    return res.status(403).json({ error: "only the buyer can initiate a charge" });
+  }
+  if (tx.paymentStatus === "paid") {
+    return res.status(400).json({ error: "transaction already paid" });
+  }
+
+  const { kind, amount } = req.body || {};
+  if (!CHARGE_KINDS.includes(kind)) {
+    return res.status(400).json({ error: "kind must be 'deposit' or 'balance'" });
+  }
+
+  const settings = await settingsRepo.getPayments();
+  const charge = paymentService.computeChargeAmount({ tx, kind, amount, escrowEnabled: settings.escrowEnabled, depositPercent: settings.depositPercent });
+  if (charge.error) return res.status(400).json({ error: charge.error });
+
+  const reference = makeChargeReference(tx.id, kind);
+
+  // Live charges need a real buyer email on file. Check it before creating any
+  // payment record so a 400 can't leave behind an orphan pending row.
+  const buyer = await usersRepo.getUser(tx.buyerId);
+  if (paystack.isEnabled() && !buyer?.email) {
+    return res.status(400).json({ error: "a valid email is required to start a Paystack payment" });
+  }
+
+  const payment = await paymentsRepo.createPayment({
+    transactionId: tx.id,
+    kind,
+    provider: "paystack",
+    reference,
+    amount: charge.amount,
+  });
+
+  if (!paystack.isEnabled()) {
+    const updated = await paymentService.applySuccessfulCharge(payment, { channel: "mobile_money" });
+    return res.json({ transaction: updated, payment: { ...payment, status: "success", channel: "mobile_money" }, simulated: true });
+  }
+
+  const init = await paystack.initializeCharge({
+    amountGhs: charge.amount,
+    email: buyer.email,
+    reference,
+    metadata: { transactionId: tx.id, kind, buyerId: tx.buyerId },
+  });
+  res.json({ transaction: tx, payment: { ...payment, authorizationUrl: init.authorizationUrl }, simulated: false });
 });
 
 module.exports = router;

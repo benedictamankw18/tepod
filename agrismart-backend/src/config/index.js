@@ -15,4 +15,11 @@ module.exports = {
   googleSecretId: process.env.GOOGLE_SECRET_ID,
   jwtSecret: process.env.JWT_SECRET || "dev-only-change-me",
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || "7d",
+  // Paystack (https://paystack.com). When the secret key is absent the payment
+  // pipeline runs in a deterministic simulated mode (like the Agoo SMS fallback).
+  paystackSecretKey: process.env.PAYSTACK_SECRET_KEY,
+  paystackPublicKey: process.env.PAYSTACK_PUBLIC_KEY,
+  paystackWebhookSecret: process.env.PAYSTACK_WEBHOOK_SECRET,
+  paystackCurrency: process.env.PAYSTACK_CURRENCY || "GHS",
+  paystackBaseUrl: process.env.PAYSTACK_BASE_URL || "https://api.paystack.co",
 };

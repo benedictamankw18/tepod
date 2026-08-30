@@ -173,7 +173,7 @@ async function listNotifications({ channel, delivered } = {}) {
 }
 
 // In-app inbox for a single user (newest first), plus the count of unread rows.
-async function listMyNotifications(userId, { limit = 20 } = {}) {
+async function listMyNotifications(userId, { limit = 20, offset = 0 } = {}) {
   if (!userId) return { notifications: [], unread: 0 };
   const count = await query(
     "SELECT count(*)::int AS n FROM notifications WHERE user_id = $1 AND read_at IS NULL AND channel = 'in_app'",
@@ -181,8 +181,8 @@ async function listMyNotifications(userId, { limit = 20 } = {}) {
   );
   const r = await query(
     `SELECT * FROM notifications WHERE user_id = $1 AND channel = 'in_app'
-     ORDER BY sent_at DESC LIMIT $2`,
-    [userId, Math.min(Number(limit) || 20, 100)]
+     ORDER BY sent_at DESC LIMIT $2 OFFSET $3`,
+    [userId, Math.min(Number(limit) || 20, 100), Math.max(Number(offset) || 0, 0)]
   );
   const notifications = r.rows.map((row) => ({
     id: row.id,

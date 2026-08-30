@@ -27,10 +27,15 @@ const regionsRoutes = require("./routes/regions");
 const adminRoutes = require("./routes/audit");
 const reviewsRoutes = require("./routes/reviews");
 const settingsRoutes = require("./routes/settings");
+const paymentsRoutes = require("./routes/payments");
 
 function createApp() {
   const app = express();
-  app.use(express.json());
+  // Capture the raw JSON bytes so the Paystack webhook can verify its HMAC signature
+  // against the exact payload the provider signed. verify() runs before parsing.
+  app.use(express.json({
+    verify: (req, _res, buf) => { req.rawBody = buf; },
+  }));
 
   // Express only sets req.body when a JSON Content-Type body is sent; for body-less
   // requests req.body is undefined, which would crash any `const { ... } = req.body`.
@@ -62,6 +67,7 @@ function createApp() {
   app.use("/api/admin", adminRoutes);
   app.use("/api/reviews", reviewsRoutes);
   app.use("/api/settings", settingsRoutes);
+  app.use("/api/payments", paymentsRoutes);
   app.use("/ussd", ussdRoutes);
 
   // Serve uploaded images (live photos, produce, farm) from /uploads/*.

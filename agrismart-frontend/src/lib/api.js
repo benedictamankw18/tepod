@@ -156,6 +156,29 @@ export function getTransaction(id) {
   return request('GET', `/api/transactions/${id}`)
 }
 
+// --- Payments (Paystack charges + escrow) ---
+
+// Settings the checkout needs: escrow toggle, deposit floor, currency, Paystack key.
+export function getPaymentsConfig() {
+  return request('GET', '/api/payments/config')
+}
+
+// Open a Paystack charge for a deposit or balance payment on a transaction.
+// Simulated mode (no PAYSTACK_SECRET_KEY) settles instantly and returns { simulated: true }.
+export function chargeTransaction(id, payload) {
+  return request('POST', `/api/transactions/${id}/charge`, payload)
+}
+
+// Verify + settle a charge after the buyer returns from Paystack. Idempotent.
+export function confirmPayment(id, payload) {
+  return request('POST', `/api/payments/${id}/confirm`, payload)
+}
+
+// The farmer's escrow payout destination (bank account or mobile-money wallet).
+export function updatePayoutAccount(payload) {
+  return request('POST', '/api/auth/payout', payload)
+}
+
 // --- Cart (server-backed) ---
 
 export function getCart() {
@@ -422,8 +445,11 @@ export function broadcastNotification(payload) {
   return request('POST', '/api/notifications/broadcast', payload)
 }
 
-export function getMyNotifications() {
-  return request('GET', '/api/notifications/me')
+export function getMyNotifications(limit, offset) {
+  const params = {}
+  if (limit) params.limit = limit
+  if (offset) params.offset = offset
+  return request('GET', `/api/notifications/me${qs(params)}`)
 }
 
 export function markNotificationsRead(ids = []) {
@@ -484,4 +510,12 @@ export function getCommissionSettings() {
 
 export function saveCommissionSettings(config) {
   return request('PUT', '/api/settings/commission', { config })
+}
+
+export function getPaymentsSettings() {
+  return request('GET', '/api/settings/payments')
+}
+
+export function savePaymentsSettings(config) {
+  return request('PUT', '/api/settings/payments', { config })
 }

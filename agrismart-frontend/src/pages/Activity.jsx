@@ -203,7 +203,11 @@ function CommitmentCard({ c, onRespond, onFulfill, busy }) {
                 <button
                   type="button"
                   disabled={busy || working}
-                  onClick={() => setReadyForm(true)}
+                  onClick={() => {
+                    setActualQty(String(c.quantity ?? ''))
+                    setCondition('')
+                    setReadyForm(true)
+                  }}
                   className="w-full rounded-[8px] bg-leaf px-2 py-1.5 font-sans text-xs font-bold text-white transition hover:bg-leaf-dark disabled:opacity-50"
                 >
                   Mark as ready
@@ -215,12 +219,16 @@ function CommitmentCard({ c, onRespond, onFulfill, busy }) {
                     <input
                       type="number"
                       min="0"
+                      max={c.quantity ?? undefined}
                       step="1"
                       value={actualQty}
                       onChange={(e) => setActualQty(e.target.value)}
                       className="w-20 rounded-md border border-line bg-white px-2 py-1 font-sans text-xs text-ink outline-none focus:border-leaf"
                     />
                   </label>
+                  <p className="font-sans text-[11px] text-muted">
+                    Buyer requested {c.quantity} {c.listing?.unit || 'units'} — you can deliver up to that amount.
+                  </p>
                   <label className="flex items-center gap-2 font-sans text-[11px] text-muted">
                     Condition
                     <input
@@ -237,8 +245,13 @@ function CommitmentCard({ c, onRespond, onFulfill, busy }) {
                       type="button"
                       disabled={busy || working}
                       onClick={() => {
+                        const qty = actualQty === '' ? null : Number(actualQty)
+                        if (qty != null && qty > c.quantity) {
+                          flashToast(`Can't deliver more than the buyer's requested ${c.quantity} ${c.listing?.unit || 'units'}.`)
+                          return
+                        }
                         fulfill('ready', {
-                          actualQuantity: actualQty === '' ? null : Number(actualQty),
+                          actualQuantity: qty,
                           condition: condition.trim() || null,
                         })
                         setReadyForm(false)

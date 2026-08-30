@@ -8,6 +8,9 @@ const { requireAuth } = require("../middleware/auth");
 const router = express.Router();
 const bad = (res, msg) => res.status(400).json({ error: msg });
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+// A deliverable Ghana mobile number (+233 + 9 digits); matches what the SMS
+// gateway accepts. "024 123 4567" is normalized to "+233241234567" first.
+const GHANA_PHONE_RE = /^\+233\d{9}$/;
 
 // Latitude/longitude sanity check so garbage (e.g. NaN or out-of-range) never
 // reaches the numeric columns. lat must be within [-90, 90], lng within [-180, 180].
@@ -619,6 +622,10 @@ router.post("/profile", requireAuth, async (req, res) => {
  *               address: { type: string }
  *               lat: { type: number }
  *               lng: { type: number }
+ *               email: { type: string, nullable: true, description: "Login email; '' or null clears it. Requires currentPassword." }
+ *               phone: { type: string, nullable: true, description: "Login phone (Ghana, normalized to +233…); '' or null clears it. Requires currentPassword." }
+ *               currentPassword: { type: string, description: "Required when email or phone is being changed." }
+ *               username: { type: string, description: "Claim a username when the account has none; once set, it cannot be changed by the user." }
  *     responses:
  *       200:
  *         description: Updated public profile
@@ -637,10 +644,71 @@ router.post("/account", requireAuth, async (req, res) => {
   const {
     name, location, language, buyerType, mobileMoneyProvider, farmSize,
     primaryCrops, purchaseCrops, community, region, district, gpsAddress, address, lat, lng,
+    email, phone, username, currentPassword,
   } = req.body;
+
+  // A username can be claimed once, but only by an account that doesn't have one
+  // yet. Once set it is immutable to the account holder (admin-managed afterwards).
+  if (username !== undefined) {
+    if (req.user.username) {
+      return bad(res, "username is already set and cannot be changed");
+    }
+    const handle = String(username || "").trim();
+    if (!/^[a-zA-Z0-9_.]{3,30}$/.test(handle)) {
+      return bad(res, "username must be 3-30 characters using letters, numbers, _ or .");
+    }
+    const other = await usersRepo.findUserByUsername(handle);
+    if (other) return res.status(409).json({ error: "a user with this username already exists" });
+  }
 
   if (req.user.role !== "buyer" && buyerType !== undefined) {
     return bad(res, "buyerType only applies to buyer accounts");
+  }
+
+  // Changing the login contact details re-verifies the caller's identity. This is
+  // skipped for ordinary profile edits that leave email/phone untouched.
+  let contact = {};
+  if (email !== undefined || phone !== undefined) {
+    if (!req.user.passwordHash) {
+      return bad(res, "this account has no password set");
+    }
+    if (!currentPassword) {
+      return bad(res, "current password is required to change your login email or phone");
+    }
+    const passwordOk = await auth.comparePassword(currentPassword, req.user.passwordHash);
+    if (!passwordOk) return bad(res, "current password is incorrect");
+
+    const cleanEmail = email === undefined ? (req.user.email || null) : (String(email || "").trim().toLowerCase() || null);
+    const cleanPhone = phone === undefined ? (req.user.phone || null) : (phone ? usersRepo.normalizeE164(phone) : null);
+
+    if (cleanEmail && !EMAIL_RE.test(cleanEmail)) {
+      return bad(res, "a valid email address is required");
+    }
+    if (cleanPhone && !GHANA_PHONE_RE.test(cleanPhone)) {
+      return bad(res, "enter a valid Ghana phone number (e.g. 024 123 4567)");
+    }
+    // The account must keep at least one login identifier, counting the values that
+    // were left untouched (an omitted field keeps its current stored value).
+    if (!cleanEmail && !cleanPhone) {
+      return bad(res, "keep at least a phone number or email so you can sign in");
+    }
+
+    if (cleanEmail) {
+      const other = await usersRepo.findUserByEmail(cleanEmail);
+      if (other && other.id !== req.user.id) {
+        return res.status(409).json({ error: "a user with this email already exists" });
+      }
+    }
+    if (cleanPhone) {
+      const other = await usersRepo.findUserByPhone(cleanPhone);
+      if (other && other.id !== req.user.id) {
+        return res.status(409).json({ error: "a user with this phone already exists" });
+      }
+    }
+
+    // Record only the fields the caller explicitly touched; untouched ones stay as-is.
+    if (email !== undefined) contact.email = cleanEmail;
+    if (phone !== undefined) contact.phone = cleanPhone;
   }
 
   let resolvedLat = lat == null ? null : Number(lat);
@@ -664,6 +732,8 @@ router.post("/account", requireAuth, async (req, res) => {
     address: address || req.user.address,
     lat: resolvedLat,
     lng: resolvedLng,
+    username,
+    ...contact,
   });
   if (!updated) return res.status(404).json({ error: "user not found" });
   res.json({ user: usersRepo.publicUser(updated) });
@@ -741,6 +811,29 @@ router.post("/change-password", requireAuth, async (req, res) => {
   const passwordHash = await auth.hashPassword(newPassword);
   await usersRepo.setPassword(req.user.id, passwordHash);
   res.json({ ok: true });
+});
+
+// POST /api/auth/payout - the farmer's own escrow payout destination: a bank account
+// OR a mobile-money wallet. Saving one clears the other; any cached Paystack
+// recipient is invalidated so a fresh one is built with the new details.
+router.post("/payout", requireAuth, async (req, res) => {
+  const { bankName, bankCode, bankAccountNumber, bankAccountName, momoProvider, momoNumber } = req.body || {};
+  const wantsBank = bankCode || bankAccountNumber;
+  const wantsMomo = momoProvider || momoNumber;
+  if (wantsBank && wantsMomo) {
+    return bad(res, "pick one payout method: bank or mobile money");
+  }
+  if (wantsBank && !bankAccountNumber) {
+    return bad(res, "bank account number is required for a bank payout");
+  }
+  if (wantsMomo && !momoNumber) {
+    return bad(res, "mobile money number is required for a mobile money payout");
+  }
+  const updated = await usersRepo.setPayoutAccount(req.user.id, {
+    bankName, bankCode, bankAccountNumber, bankAccountName, momoProvider, momoNumber,
+  });
+  if (!updated) return res.status(404).json({ error: "user not found" });
+  res.json({ user: usersRepo.publicUser(updated) });
 });
 
 module.exports = router;

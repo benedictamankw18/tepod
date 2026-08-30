@@ -43,4 +43,22 @@ async function setCommission(value, byUserId) {
   return value;
 }
 
-module.exports = { getSetting, setSetting, getCommission, setCommission, DEFAULT_COMMISSION };
+const DEFAULT_PAYMENTS = {
+  escrowEnabled: false,
+  depositPercent: 30,
+  provider: "paystack",
+  currency: "GHS",
+  payoutMode: "auto",
+};
+
+async function getPayments() {
+  const row = await getSetting("payments");
+  return row ? { ...DEFAULT_PAYMENTS, ...row.value } : { ...DEFAULT_PAYMENTS };
+}
+
+async function setPayments(value, byUserId) {
+  await setSetting("payments", value, byUserId);
+  return value;
+}
+
+module.exports = { getSetting, setSetting, getCommission, setCommission, DEFAULT_COMMISSION, getPayments, setPayments, DEFAULT_PAYMENTS };

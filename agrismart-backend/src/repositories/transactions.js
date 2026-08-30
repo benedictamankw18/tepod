@@ -18,6 +18,11 @@ const ROW_TO_TX = (r) => ({
   dueDate: new Date(r.due_date).toISOString().slice(0, 10),
   paidAt: r.paid_at,
   createdAt: r.created_at,
+  escrowStatus: r.escrow_status || "none",
+  escrowAmount: Number(r.escrow_amount ?? 0),
+  paymentMethod: r.payment_method || null,
+  paymentProvider: r.payment_provider || null,
+  payoutReference: r.payout_reference || null,
 });
 
 async function createTransaction({ listingId, buyerId, farmerId, agreedPrice, dueDate, commissionAmount = 0, netAmount = 0, markSold = true }) {
@@ -87,6 +92,28 @@ async function setPaymentStatus(id, status) {
   const r = await query(
     `UPDATE transactions SET payment_status = $2 ${extra} WHERE id = $1 RETURNING *`,
     [id, status]
+  );
+  return r.rowCount ? ROW_TO_TX(r.rows[0]) : null;
+}
+
+// Escrow tracking. status in 'none'|'funds_collected'|'held'|'released'|'refunded'.
+async function setEscrow(id, { status, amount, paymentMethod, paymentProvider }) {
+  const sets = ["escrow_status = $2"];
+  const params = [id, status];
+  if (amount !== undefined) { params.push(Number(amount)); sets.push(`escrow_amount = $${params.length}`); }
+  if (paymentMethod !== undefined) { params.push(paymentMethod); sets.push(`payment_method = $${params.length}`); }
+  if (paymentProvider !== undefined) { params.push(paymentProvider); sets.push(`payment_provider = $${params.length}`); }
+  const r = await query(
+    `UPDATE transactions SET ${sets.join(", ")} WHERE id = $1 RETURNING *`,
+    params
+  );
+  return r.rowCount ? ROW_TO_TX(r.rows[0]) : null;
+}
+
+async function setPayoutReference(id, reference) {
+  const r = await query(
+    "UPDATE transactions SET payout_reference = $2 WHERE id = $1 RETURNING *",
+    [id, reference]
   );
   return r.rowCount ? ROW_TO_TX(r.rows[0]) : null;
 }
@@ -197,4 +224,5 @@ module.exports = {
   overdueTransactions, refreshOverdue, transactionsForUser, purchasesForBuyer,
   buyerReliability,
   listAllTransactions,
+  setEscrow, setPayoutReference,
 };

@@ -91,14 +91,16 @@ async function myReviews(buyerId) {
 }
 
 // Reviews a farmer has received across all their listings (for the dashboard).
+// Display is deduped per buyer — one review per buyer, the newest one — so a buyer
+// who purchased through several of the farmer's listings still shows up once.
 async function receivedReviews(farmerId) {
   const r = await query(
-    `SELECT r.*, u.name AS buyer_name, l.crop_type
+    `SELECT DISTINCT ON (r.buyer_id) r.*, u.name AS buyer_name, l.crop_type
      FROM reviews r
      JOIN users u ON u.id = r.buyer_id
      JOIN listings l ON l.id = r.listing_id
      WHERE l.farmer_id = $1
-     ORDER BY r.created_at DESC`,
+     ORDER BY r.buyer_id, r.created_at DESC`,
     [farmerId]
   );
   return r.rows.map(ROW_TO_REVIEW);

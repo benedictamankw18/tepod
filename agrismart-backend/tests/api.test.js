@@ -594,7 +594,7 @@ describe("marketplace loop", () => {
       .get(`/api/transactions/${accept.body.transactionId}`).set("Authorization", `Bearer ${buyerToken}`);
     expect(tx.status).toBe(200);
     expect(tx.body.paymentStatus).toBe("pending");
-    expect(tx.body.agreedPrice).toBe(150);
+    expect(tx.body.agreedPrice).toBe(1500);
     expect(tx.body.listingId).toBe(listingId);
 
     // buyer marks paid
@@ -1330,6 +1330,163 @@ describe("user profile / settings", () => {
     const newLogin = await request(app).post("/api/auth/login").send({ identifier: "0245560003", password: "newpass1" });
     expect(newLogin.status).toBe(200);
   });
+
+  test("email and phone can be added or changed with the current password", async () => {
+    const reg = await register({
+      name: "ContactFarmer", phone: "0245560011", role: "farmer", password: "secret123", location: "Kasoa",
+    });
+    expect(reg.status).toBe(201);
+    const token = reg.body.token;
+    expect(reg.body.user.email).toBeNull();
+
+    const res = await request(app)
+      .post("/api/auth/account").set("Authorization", `Bearer ${token}`)
+      .send({ email: "NewCoNaCt@Example.com", phone: "024 557 9999", currentPassword: "secret123" });
+    expect(res.status).toBe(200);
+    expect(res.body.user.email).toBe("newconact@example.com");
+    expect(res.body.user.phone).toBe("+233245579999");
+
+    const me = await request(app).get("/api/auth/me").set("Authorization", `Bearer ${token}`);
+    expect(me.body.user.email).toBe("newconact@example.com");
+    expect(me.body.user.phone).toBe("+233245579999");
+
+    // The freshly set phone is immediately usable for login.
+    const login = await request(app).post("/api/auth/login").send({ identifier: "0245579999", password: "secret123" });
+    expect(login.status).toBe(200);
+  });
+
+  test("changing login contact requires the current password", async () => {
+    const reg = await register({
+      name: "Guarded", phone: "0245560014", role: "buyer", password: "secret123", location: "Accra", buyerType: "retail",
+    });
+    const token = reg.body.token;
+
+    const missing = await request(app)
+      .post("/api/auth/account").set("Authorization", `Bearer ${token}`)
+      .send({ email: "guarded@example.com" });
+    expect(missing.status).toBe(400);
+    expect(missing.body.error).toMatch(/current password is required/);
+
+    const wrong = await request(app)
+      .post("/api/auth/account").set("Authorization", `Bearer ${token}`)
+      .send({ email: "guarded@example.com", currentPassword: "nope123" });
+    expect(wrong.status).toBe(400);
+    expect(wrong.body.error).toMatch(/current password is incorrect/);
+
+    const me = await request(app).get("/api/auth/me").set("Authorization", `Bearer ${token}`);
+    expect(me.body.user.email).toBeNull();
+  });
+
+  test("contact updates validate, enforce uniqueness, and keep at least one identifier", async () => {
+    const a = await register({
+      name: "UniqueA", phone: "0245560012", role: "farmer", password: "secret123", location: "Tema",
+    });
+    const b = await register({
+      name: "UniqueB", phone: "0245560013", email: "already.taken@example.com", role: "farmer", password: "secret123", location: "Accra",
+    });
+    expect(a.status).toBe(201);
+    expect(b.status).toBe(201);
+
+    // Email already used by another account.
+    const emailDup = await request(app)
+      .post("/api/auth/account").set("Authorization", `Bearer ${a.body.token}`)
+      .send({ email: "ALREADY.taken@example.com", currentPassword: "secret123" });
+    expect(emailDup.status).toBe(409);
+    expect(emailDup.body.error).toMatch(/email already exists/);
+
+    // Phone already used by another account.
+    const phoneDup = await request(app)
+      .post("/api/auth/account").set("Authorization", `Bearer ${a.body.token}`)
+      .send({ phone: "0245560013", currentPassword: "secret123" });
+    expect(phoneDup.status).toBe(409);
+    expect(phoneDup.body.error).toMatch(/phone already exists/);
+
+    // Not a deliverable Ghana number.
+    const badPhone = await request(app)
+      .post("/api/auth/account").set("Authorization", `Bearer ${a.body.token}`)
+      .send({ phone: "0555123", currentPassword: "secret123" });
+    expect(badPhone.status).toBe(400);
+
+    // Clearing email works while the existing phone is kept (phone key omitted).
+    const cleared = await request(app)
+      .post("/api/auth/account").set("Authorization", `Bearer ${a.body.token}`)
+      .send({ email: "", currentPassword: "secret123" });
+    expect(cleared.status).toBe(200);
+    expect(cleared.body.user.email).toBeNull();
+    expect(cleared.body.user.phone).toBe("+233245560012");
+
+    // Blanking the last identifier is refused.
+    const bothBlank = await request(app)
+      .post("/api/auth/account").set("Authorization", `Bearer ${a.body.token}`)
+      .send({ email: "", phone: "", currentPassword: "secret123" });
+    expect(bothBlank.status).toBe(400);
+    expect(bothBlank.body.error).toMatch(/at least a phone number or email/);
+  });
+
+  test("username cannot be changed by the account holder", async () => {
+    const reg = await register({
+      name: "Handle", username: "dora", phone: "0245560015", role: "buyer", password: "secret123", location: "Accra", buyerType: "retail",
+    });
+    const token = reg.body.token;
+    expect(reg.body.user.username).toBe("dora");
+
+    const res = await request(app)
+      .post("/api/auth/account").set("Authorization", `Bearer ${token}`)
+      .send({ username: "hacker" });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/cannot be changed/);
+
+    const me = await request(app).get("/api/auth/me").set("Authorization", `Bearer ${token}`);
+    expect(me.body.user.username).toBe("dora");
+  });
+
+  test("an account without a username can claim one once", async () => {
+    const reg = await register({
+      name: "Claimer", phone: "0245560016", role: "buyer", password: "secret123", location: "Accra", buyerType: "retail",
+    });
+    expect(reg.status).toBe(201);
+    expect(reg.body.user.username).toBeNull();
+    const token = reg.body.token;
+
+    // Invalid formats are rejected up front.
+    const short = await request(app)
+      .post("/api/auth/account").set("Authorization", `Bearer ${token}`)
+      .send({ username: "ab" });
+    expect(short.status).toBe(400);
+
+    const weird = await request(app)
+      .post("/api/auth/account").set("Authorization", `Bearer ${token}`)
+      .send({ username: "bad handle!" });
+    expect(weird.status).toBe(400);
+
+    // Claiming succeeds without a current password and normalizes to lower-case.
+    const res = await request(app)
+      .post("/api/auth/account").set("Authorization", `Bearer ${token}`)
+      .send({ username: "Kwame_24" });
+    expect(res.status).toBe(200);
+    expect(res.body.user.username).toBe("kwame_24");
+
+    // The handle is immediately usable to sign in (case-insensitively).
+    const login = await request(app).post("/api/auth/login").send({ identifier: "KWAME_24", password: "secret123" });
+    expect(login.status).toBe(200);
+
+    // Once claimed it is locked: changing it is rejected.
+    const again = await request(app)
+      .post("/api/auth/account").set("Authorization", `Bearer ${token}`)
+      .send({ username: "otherhandle" });
+    expect(again.status).toBe(400);
+    expect(again.body.error).toMatch(/cannot be changed/);
+
+    // Another account cannot reuse the taken handle.
+    const other = await register({
+      name: "Claimer2", phone: "0245560017", role: "buyer", password: "secret123", location: "Accra", buyerType: "retail",
+    });
+    const dup = await request(app)
+      .post("/api/auth/account").set("Authorization", `Bearer ${other.body.token}`)
+      .send({ username: "kwame_24" });
+    expect(dup.status).toBe(409);
+    expect(dup.body.error).toMatch(/already exists/);
+  });
 });
 
 describe("cart + zero-price precommitment", () => {
@@ -1738,6 +1895,22 @@ describe("pre-commitment negotiation (offers, counters, minimum price)", () => {
     const buyerAfter = await inbox(buyer.body.token);
     expect(buyerAfter.body.unread).toBe(0);
   });
+
+  test("a buyer cannot commit more than the listed quantity", async () => {
+    const { farmer, buyer } = await makePair(5);
+    const listing = await makeListing(farmer.body.token, 100, null); // quantity 20
+
+    const over = await request(app)
+      .post("/api/precommitments").set("Authorization", `Bearer ${buyer.body.token}`)
+      .send({ listingId: listing.id, quantity: 25, offeredPrice: 100 });
+    expect(over.status).toBe(400);
+    expect(over.body.error).toContain("cannot exceed the listed amount");
+
+    const at = await request(app)
+      .post("/api/precommitments").set("Authorization", `Bearer ${buyer.body.token}`)
+      .send({ listingId: listing.id, quantity: 20, offeredPrice: 100 });
+    expect(at.status).toBe(201);
+  });
 });
 
 describe("pre-commitment fulfillment (deposits, produce-ready, delivery, completion)", () => {
@@ -1777,7 +1950,7 @@ describe("pre-commitment fulfillment (deposits, produce-ready, delivery, complet
       .get(`/api/transactions/${pc.transactionId}`).set("Authorization", `Bearer ${buyer.body.token}`);
     expect(tx.status).toBe(200);
     expect(tx.body.paymentStatus).toBe("pending");
-    expect(tx.body.agreedPrice).toBe(150);
+    expect(tx.body.agreedPrice).toBe(1500);
     expect(tx.body.depositAmount).toBe(0);
     expect(tx.body.paidAmount).toBe(0);
 
@@ -1851,10 +2024,10 @@ describe("pre-commitment fulfillment (deposits, produce-ready, delivery, complet
 
     const deposit = await request(app)
       .post(`/api/transactions/${pc.transactionId}/deposit`).set("Authorization", `Bearer ${buyer.body.token}`)
-      .send({ amount: 60 });
+      .send({ amount: 600 });
     expect(deposit.status).toBe(200);
     expect(deposit.body.paymentStatus).toBe("deposited");
-    expect(deposit.body.depositAmount).toBe(60);
+    expect(deposit.body.depositAmount).toBe(600);
 
     const farmerInbox = await request(app).get("/api/notifications/me").set("Authorization", `Bearer ${farmer.body.token}`);
     expect(farmerInbox.body.notifications.map((n) => n.title)).toContain("Deposit received");
@@ -1867,13 +2040,13 @@ describe("pre-commitment fulfillment (deposits, produce-ready, delivery, complet
       .post(`/api/precommitments/${pc.id}/fulfill`).set("Authorization", `Bearer ${buyer.body.token}`)
       .send({ step: "delivered" });
 
-    // Paying the remaining balance (150 - 60) closes the deal.
+    // Paying the remaining balance (1500 - 600) closes the deal.
     const pay = await request(app)
       .post(`/api/transactions/${pc.transactionId}/pay`).set("Authorization", `Bearer ${buyer.body.token}`)
-      .send({ amount: 90 });
+      .send({ amount: 900 });
     expect(pay.status).toBe(200);
     expect(pay.body.paymentStatus).toBe("paid");
-    expect(pay.body.paidAmount).toBe(90);
+    expect(pay.body.paidAmount).toBe(900);
 
     const finished = await request(app)
       .get("/api/precommitments/me").set("Authorization", `Bearer ${buyer.body.token}`);
@@ -1912,6 +2085,50 @@ describe("pre-commitment fulfillment (deposits, produce-ready, delivery, complet
     expect(after.body.find((p) => p.id === pc.id).status).toBe("completed");
     const l = await request(app).get(`/api/listings/${listing.id}`);
     expect(l.body.status).toBe("sold");
+  });
+
+  test("legacy commitments without a transaction get one on delivery and a real-price receipt", async () => {
+    const { buyer, farmer, pc, farmerMail } = await makePair();
+
+    // Simulate a pre-0032 pre-commitment: accepted but with no linked transaction or
+    // agreed price recorded (the data that used to render "Payment of GHS null").
+    await adminPool.query(
+      "UPDATE pre_commitments SET transaction_id = NULL, agreed_price = NULL WHERE id = $1",
+      [pc.id]
+    );
+
+    await request(app)
+      .post(`/api/precommitments/${pc.id}/fulfill`).set("Authorization", `Bearer ${farmer.body.token}`)
+      .send({ step: "ready" });
+    const delivered = await request(app)
+      .post(`/api/precommitments/${pc.id}/fulfill`).set("Authorization", `Bearer ${buyer.body.token}`)
+      .send({ step: "delivered" });
+    expect(delivered.status).toBe(200);
+
+    // The route auto-created a transaction at the offered price × quantity...
+    const mine = await request(app)
+      .get("/api/precommitments/me").set("Authorization", `Bearer ${buyer.body.token}`);
+    const afterPc = mine.body.find((p) => p.id === pc.id);
+    expect(afterPc.transactionId).toBeTruthy();
+    const tx = await request(app)
+      .get(`/api/transactions/${afterPc.transactionId}`).set("Authorization", `Bearer ${buyer.body.token}`);
+    expect(tx.status).toBe(200);
+    expect(tx.body.agreedPrice).toBe(1500);
+
+    // ...so the receipt notification shows the real amount, not "GHS null".
+    const { rows } = await adminPool.query(
+      `SELECT params, message FROM notifications
+       WHERE message_key = 'precommit_received' AND to_email = $1
+       ORDER BY sent_at DESC LIMIT 1`,
+      [farmerMail]
+    );
+    expect(rows.length).toBe(1);
+    expect(rows[0].params.price).toBe(1500);
+    expect(rows[0].message).toContain("GHS 1500");
+    expect(rows[0].message).not.toContain("null");
+
+    // Payment is still outstanding, so the commitment is not completed yet.
+    expect(afterPc.status).toBe("delivered");
   });
 
   test("transport can be arranged for a pre-commitment by either party", async () => {
@@ -1953,13 +2170,13 @@ describe("pre-commitment fulfillment (deposits, produce-ready, delivery, complet
       .send({ step: "ready", actualQuantity: 10 });
     await request(app)
       .post(`/api/transactions/${pc.transactionId}/deposit`).set("Authorization", `Bearer ${buyer.body.token}`)
-      .send({ amount: 30 });
-    await request(app)
+.send({ amount: 300 });
+await request(app)
       .post(`/api/precommitments/${pc.id}/fulfill`).set("Authorization", `Bearer ${buyer.body.token}`)
       .send({ step: "delivered" });
     await request(app)
       .post(`/api/transactions/${pc.transactionId}/pay`).set("Authorization", `Bearer ${buyer.body.token}`)
-      .send({ amount: 120 });
+      .send({ amount: 1200 });
 
     const { rows } = await adminPool.query(
       `SELECT message_key, channel, to_email, to_phone, user_id FROM notifications
@@ -1995,6 +2212,188 @@ describe("pre-commitment fulfillment (deposits, produce-ready, delivery, complet
       expect(smsFor("precommit_completed", mail === farmerMail ? farmer.body.user.phone : buyer.body.user.phone)).toBe(true);
     }
     expect(inAppFor("precommit_completed")).toBe(true);
+  });
+
+  test("ready delivery cannot exceed the buyer's requested quantity", async () => {
+    const { farmer, pc } = await makePair(); // requested quantity is 10
+
+    const over = await request(app)
+      .post(`/api/precommitments/${pc.id}/fulfill`).set("Authorization", `Bearer ${farmer.body.token}`)
+      .send({ step: "ready", actualQuantity: 11 });
+    expect(over.status).toBe(400);
+    expect(over.body.error).toContain("exceed the buyer's requested quantity");
+
+    // Equal to the requested amount is allowed and the commitment proceeds.
+    const ok = await request(app)
+      .post(`/api/precommitments/${pc.id}/fulfill`).set("Authorization", `Bearer ${farmer.body.token}`)
+      .send({ step: "ready", actualQuantity: 10 });
+    expect(ok.status).toBe(200);
+    expect(ok.body.actualQuantity).toBe(10);
+  });
+});
+
+describe("payments & escrow (Paystack simulated)", () => {
+  const auth = require("../src/services/auth");
+
+  let adminToken;
+
+  const rndPhone = () => `02490${String(Math.floor(Math.random() * 100000)).padStart(5, "0")}`;
+
+  async function resetPayments(over = {}) {
+    const res = await request(app)
+      .put("/api/settings/payments").set("Authorization", `Bearer ${adminToken}`)
+      .send({ config: { escrowEnabled: false, depositPercent: 30, payoutMode: "auto", currency: "GHS", ...over } });
+    expect(res.status).toBe(200);
+  }
+
+  async function setPayments(over) {
+    await resetPayments({ escrowEnabled: true, ...over });
+  }
+
+  async function makePair(price = 200) {
+    const seed = `${Date.now()}-${Math.floor(Math.random() * 99999)}`;
+    const farmer = await register({ name: `PayFarmer${seed}`, phone: rndPhone(), email: `payfarmer${seed}@example.com`, role: "farmer", password: "pw", location: "Kasoa" });
+    const buyer = await register({ name: `PayBuyer${seed}`, phone: rndPhone(), email: `paybuyer${seed}@example.com`, role: "buyer", password: "pw", location: "Accra", buyerType: "retail" });
+    const intruder = await register({ name: `PayIntruder${seed}`, phone: rndPhone(), role: "buyer", password: "pw", location: "Accra", buyerType: "retail" });
+    await request(app)
+      .post("/api/auth/verify").set("Authorization", `Bearer ${buyer.body.token}`)
+      .send({ purchaseCrops: ["tomato"], region: "Greater Accra", district: "Ada East", idType: "ghana_card", idNumber: `GHA-${seed.slice(-9)}`, photoUrl: "/uploads/photo.jpg" });
+    const listing = await request(app)
+      .post("/api/listings").set("Authorization", `Bearer ${farmer.body.token}`)
+      .send({ cropType: "tomato", quantity: 10, unit: "crates", askingPrice: price, location: "Kasoa" });
+    expect(listing.status).toBe(201);
+    const pc = await request(app)
+      .post("/api/precommitments").set("Authorization", `Bearer ${buyer.body.token}`)
+      .send({ listingId: listing.body.id, quantity: 5, offeredPrice: price });
+    expect(pc.status).toBe(201);
+    const accept = await request(app)
+      .post(`/api/precommitments/${pc.body.id}/respond`).set("Authorization", `Bearer ${farmer.body.token}`)
+      .send({ action: "accept" });
+    expect(accept.body.status).toBe("accepted");
+    return { farmer, buyer, intruder, listing: listing.body, pc: accept.body };
+  }
+
+  beforeAll(async () => {
+    // Default the suite to deterministic simulated Paystack even when a sandbox key
+    // lives in .env (PAYSTACK_SIMULATED is read per request by services/paystack).
+    process.env.PAYSTACK_SIMULATED = "1";
+    const { token } = await auth.registerWithPassword({ name: "Pay Admin", phone: "0249090001", role: "admin", password: "AgriSmart123!" });
+    adminToken = token;
+    await resetPayments();
+  });
+
+  afterAll(async () => {
+    await resetPayments();
+    delete process.env.PAYSTACK_SIMULATED;
+  });
+
+  test("payments config exposes checkout defaults and simulated mode without keys", async () => {
+    const buyer = await register({ name: "CfgBuyer", phone: rndPhone(), role: "buyer", password: "pw", location: "Accra", buyerType: "retail" });
+    const res = await request(app).get("/api/payments/config").set("Authorization", `Bearer ${buyer.body.token}`);
+    expect(res.status).toBe(200);
+    expect(res.body.provider).toBe("paystack");
+    expect(res.body.currency).toBe("GHS");
+    expect(typeof res.body.escrowEnabled).toBe("boolean");
+    expect(res.body.depositPercent).toBe(30);
+    expect(res.body.payoutMode).toBe("auto");
+    expect(typeof res.body.simulated).toBe("boolean");
+    // Test runs never hold Paystack keys, so the flow is deterministic simulated.
+    expect(res.body.simulated).toBe(true);
+  });
+
+  test("charge settles a deposit and balance in simulated mode; only the buyer may charge", async () => {
+    const { farmer, buyer, intruder, pc } = await makePair(200);
+
+    const intrusion = await request(app)
+      .post(`/api/transactions/${pc.transactionId}/charge`).set("Authorization", `Bearer ${intruder.body.token}`)
+      .send({ kind: "deposit", amount: 40 });
+    expect(intrusion.status).toBe(403);
+
+    const deposit = await request(app)
+      .post(`/api/transactions/${pc.transactionId}/charge`).set("Authorization", `Bearer ${buyer.body.token}`)
+      .send({ kind: "deposit", amount: 40 });
+    expect(deposit.status).toBe(200);
+    expect(deposit.body.simulated).toBe(true);
+    expect(deposit.body.transaction.depositAmount).toBe(40);
+    expect(deposit.body.transaction.paymentStatus).toBe("deposited");
+
+    await request(app)
+      .post(`/api/precommitments/${pc.id}/fulfill`).set("Authorization", `Bearer ${farmer.body.token}`)
+      .send({ step: "ready" });
+    await request(app)
+      .post(`/api/precommitments/${pc.id}/fulfill`).set("Authorization", `Bearer ${buyer.body.token}`)
+      .send({ step: "delivered" });
+
+    const balance = await request(app)
+      .post(`/api/transactions/${pc.transactionId}/charge`).set("Authorization", `Bearer ${buyer.body.token}`)
+      .send({ kind: "balance" });
+    expect(balance.status).toBe(200);
+    expect(balance.body.simulated).toBe(true);
+    expect(balance.body.transaction.paymentStatus).toBe("paid");
+    expect(balance.body.transaction.paidAmount).toBe(960);
+
+    const finished = await request(app).get("/api/precommitments/me").set("Authorization", `Bearer ${buyer.body.token}`);
+    expect(finished.body.find((p) => p.id === pc.id).status).toBe("completed");
+
+    const { rows } = await adminPool.query("SELECT kind, status FROM payments WHERE transaction_id = $1", [pc.transactionId]);
+    expect(rows.map((r) => r.kind).sort()).toEqual(["balance", "deposit"]);
+    expect(rows.every((r) => r.status === "success")).toBe(true);
+  });
+
+  test("escrow on: deposit floor enforced, funds held, released to the farmer on completion", async () => {
+    await setPayments({ depositPercent: 30 });
+    try {
+      const { farmer, buyer, pc } = await makePair(200); // floor = 300 (30% of 5 × 200)
+
+      const short = await request(app)
+        .post(`/api/transactions/${pc.transactionId}/charge`).set("Authorization", `Bearer ${buyer.body.token}`)
+        .send({ kind: "deposit", amount: 10 });
+      expect(short.status).toBe(400);
+      expect(short.body.error).toMatch(/at least GHS 300/);
+
+      const deposit = await request(app)
+        .post(`/api/transactions/${pc.transactionId}/charge`).set("Authorization", `Bearer ${buyer.body.token}`)
+        .send({ kind: "deposit" });
+      expect(deposit.status).toBe(200);
+      expect(deposit.body.simulated).toBe(true);
+      expect(deposit.body.transaction.depositAmount).toBe(300);
+      expect(deposit.body.transaction.escrowStatus).toBe("funds_collected");
+      expect(deposit.body.transaction.escrowAmount).toBe(300);
+
+      await request(app)
+        .post(`/api/precommitments/${pc.id}/fulfill`).set("Authorization", `Bearer ${farmer.body.token}`)
+        .send({ step: "ready" });
+      await request(app)
+        .post(`/api/precommitments/${pc.id}/fulfill`).set("Authorization", `Bearer ${buyer.body.token}`)
+        .send({ step: "delivered" });
+
+      const balance = await request(app)
+        .post(`/api/transactions/${pc.transactionId}/charge`).set("Authorization", `Bearer ${buyer.body.token}`)
+        .send({ kind: "balance" });
+      expect(balance.status).toBe(200);
+      expect(balance.body.transaction.paymentStatus).toBe("paid");
+      // Completion released the escrow to the farmer (simulated payout).
+      expect(balance.body.transaction.escrowStatus).toBe("released");
+
+      const finished = await request(app).get("/api/precommitments/me").set("Authorization", `Bearer ${buyer.body.token}`);
+      expect(finished.body.find((p) => p.id === pc.id).status).toBe("completed");
+
+      const { rows } = await adminPool.query("SELECT kind, status, amount FROM payments WHERE transaction_id = $1", [pc.transactionId]);
+      expect(rows.filter((r) => r.kind === "deposit").length).toBe(1);
+      expect(rows.filter((r) => r.kind === "balance").length).toBe(1);
+      const payout = rows.find((r) => r.kind === "payout");
+      expect(payout.status).toBe("success");
+      expect(Number(payout.amount)).toBeGreaterThan(0);
+    } finally {
+      await resetPayments();
+    }
+  });
+
+  test("webhook requires a signature and tolerates missing event payloads", async () => {
+    const missing = await request(app).post("/api/payments/webhook").send({ event: "charge.success", data: { reference: "AGL-none" } });
+    expect(missing.status).toBe(403);
+    const noEvent = await request(app).post("/api/payments/webhook").send({});
+    expect(noEvent.status).toBe(400);
   });
 });
 
@@ -3391,6 +3790,45 @@ describe("reviews (buyer product reviews)", () => {
       .get("/api/reviews/received").set("Authorization", `Bearer ${buyerToken}`);
     expect(refused.status).toBe(403);
   });
+
+  test("same buyer reviewing several listings of one farmer shows once in the dashboard", async () => {
+    const listing2 = await request(app)
+      .post("/api/listings").set("Authorization", `Bearer ${farmerToken}`)
+      .send({ cropType: "pepper", quantity: 5, unit: "bags", askingPrice: 60, location: "Kasoa" });
+    expect(listing2.status).toBe(201);
+    const listing2Id = listing2.body.id;
+
+    const pc = await request(app)
+      .post("/api/precommitments").set("Authorization", `Bearer ${buyerToken}`)
+      .send({ listingId: listing2Id, quantity: 2, offeredPrice: 60 });
+    expect(pc.status).toBe(201);
+    const accept = await request(app)
+      .post(`/api/precommitments/${pc.body.id}/respond`).set("Authorization", `Bearer ${farmerToken}`)
+      .send({ action: "accept" });
+    expect(accept.body.status).toBe("accepted");
+
+    await request(app)
+      .post(`/api/transactions/${accept.body.transactionId}/pay`).set("Authorization", `Bearer ${buyerToken}`);
+
+    const review = await request(app)
+      .post("/api/reviews").set("Authorization", `Bearer ${buyerToken}`)
+      .send({ listingId: listing2Id, rating: 5, comment: "Another great buy" });
+    expect(review.status).toBe(201);
+
+    // One buyer across two listings -> the farmer dashboard shows a single review (the newest).
+    const received = await request(app)
+      .get("/api/reviews/received").set("Authorization", `Bearer ${farmerToken}`);
+    expect(received.status).toBe(200);
+    expect(received.body).toHaveLength(1);
+    expect(received.body[0].rating).toBe(5);
+    expect(received.body[0].buyerId).toBe(buyerId);
+
+    // Per-listing storage is unchanged: each listing still carries its own review.
+    const listingReviews = await request(app)
+      .get(`/api/reviews/listing/${listing2Id}`).set("Authorization", `Bearer ${buyerToken}`);
+    expect(listingReviews.body.reviewCount).toBe(1);
+    expect(listingReviews.body.reviews[0].rating).toBe(5);
+  });
 });
 
 describe("prices import (admin bulk)", () => {
@@ -3705,7 +4143,7 @@ describe("commission settings + transaction snapshots (admin)", () => {
       .post("/api/auth/verify").set("Authorization", `Bearer ${buyerToken}`)
       .send({ purchaseCrops: ["maize"], region: "Greater Accra", district: "Ada East", idType: "ghana_card", idNumber: "GHA-77776666-1", photoUrl: "/uploads/photo.jpg" });
 
-    const tx = await setupTrade(1200);
+    const tx = await setupTrade(240); // total = 5 × 240
     expect(tx.commissionAmount).toBe(0);
     expect(tx.netAmount).toBe(1200);
   });
@@ -3736,12 +4174,12 @@ describe("commission settings + transaction snapshots (admin)", () => {
   });
 
   test("new transactions snapshot the current schedule", async () => {
-    // Tiered percent: 1500 -> 10% (150), 500 -> 5% (25).
-    const tx = await setupTrade(1500);
+    // Tiered percent on totals: 5 × 300 = 1500 -> 10% (150); 5 × 100 = 500 -> 5% (25).
+    const tx = await setupTrade(300);
     expect(tx.commissionAmount).toBe(150);
     expect(tx.netAmount).toBe(1350);
 
-    const tx2 = await setupTrade(500);
+    const tx2 = await setupTrade(100);
     expect(tx2.commissionAmount).toBe(25);
     expect(tx2.netAmount).toBe(475);
 
@@ -3755,7 +4193,7 @@ describe("commission settings + transaction snapshots (admin)", () => {
     await request(app)
       .put("/api/settings/commission").set("Authorization", `Bearer ${adminToken}`)
       .send({ config: { enabled: true, mode: "fixed", strategy: "flat", flatValue: 100, tiers: [] } });
-    const tx = await setupTrade(800);
+    const tx = await setupTrade(160); // total = 5 × 160
     expect(tx.commissionAmount).toBe(100);
     expect(tx.netAmount).toBe(700);
   });

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { getCommissionSettings, saveCommissionSettings } from '../../lib/api'
+import { getCommissionSettings, saveCommissionSettings, getPaymentsSettings, savePaymentsSettings } from '../../lib/api'
 import { useAdmin } from '../../components/AdminShell'
 import { Page, Btn, Loader, inputCls, labelCls, money } from './_ui'
 
@@ -31,6 +31,7 @@ function preview(cfg, total) {
 
 const SAMPLES = [250, 800, 1500, 2500, 3500, 8000]
 const blank = { enabled: false, mode: 'percent', strategy: 'flat', flatValue: 0, tiers: [] }
+const blankPayments = { escrowEnabled: false, provider: 'paystack', currency: 'GHS', payoutMode: 'auto', depositPercent: 30 }
 
 export default function AdminSettings() {
   const { flash } = useAdmin()
@@ -38,10 +39,15 @@ export default function AdminSettings() {
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const [cfg, setCfg] = useState(blank)
+  const [pay, setPay] = useState(blankPayments)
+  const [payBusy, setPayBusy] = useState(false)
 
   useEffect(() => {
     getCommissionSettings()
       .then((r) => setCfg({ ...blank, ...r.config, tiers: r.config?.tiers || [] }))
+      .catch((e) => setError(e.message))
+    getPaymentsSettings()
+      .then((r) => setPay({ ...blankPayments, ...r.config }))
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false))
   }, [])
@@ -73,6 +79,27 @@ export default function AdminSettings() {
       setError(err.message || 'Could not save commission settings.')
     } finally {
       setBusy(false)
+    }
+  }
+
+  const savePayments = async () => {
+    setPayBusy(true)
+    setError('')
+    try {
+      await savePaymentsSettings({
+        escrowEnabled: pay.escrowEnabled,
+        depositPercent: pay.depositPercent === '' ? 0 : Number(pay.depositPercent) || 0,
+        payoutMode: pay.payoutMode,
+        currency: pay.currency || 'GHS',
+      })
+      flash('Payment settings saved.')
+      getPaymentsSettings()
+        .then((r) => setPay({ ...blankPayments, ...r.config }))
+        .catch(() => {})
+    } catch (err) {
+      setError(err.message || 'Could not save payment settings.')
+    } finally {
+      setPayBusy(false)
     }
   }
 
@@ -201,6 +228,59 @@ export default function AdminSettings() {
               </div>
             </div>
           )}
+
+          <div className="mt-6 rounded-2xl border border-line bg-white p-5 shadow-sm">
+            <h2 className="font-serif text-xl font-semibold text-ink">Payments &amp; escrow</h2>
+            <p className="mt-1 font-sans text-sm text-muted">
+              Buyers pay through Paystack into platform escrow; farmers are paid out when the sale
+              completes. Live Paystack keys switch on real money — without them the flow runs simulated.
+            </p>
+
+            <label className="mt-4 flex items-center gap-2 font-sans text-sm text-ink">
+              <input
+                type="checkbox"
+                checked={pay.escrowEnabled}
+                onChange={(e) => setPay((p) => ({ ...p, escrowEnabled: e.target.checked }))}
+              />
+              Enable escrow (hold buyer payments, release on delivery)
+            </label>
+
+            <div className="mt-4 grid gap-4 sm:grid-cols-3">
+              <div>
+                <label className={labelCls}>Deposit floor (%)</label>
+                <input
+                  className={inputCls}
+                  type="number"
+                  min="0"
+                  max="100"
+                  value={pay.depositPercent}
+                  onChange={(e) => setPay((p) => ({ ...p, depositPercent: e.target.value }))}
+                  placeholder="e.g. 30"
+                />
+              </div>
+              <div>
+                <label className={labelCls}>Payout</label>
+                <select
+                  className={inputCls}
+                  value={pay.payoutMode}
+                  onChange={(e) => setPay((p) => ({ ...p, payoutMode: e.target.value }))}
+                >
+                  <option value="auto">Auto — release on completion</option>
+                  <option value="manual">Manual — admin initiates</option>
+                </select>
+              </div>
+              <div>
+                <label className={labelCls}>Provider</label>
+                <input className={inputCls} value={pay.provider} readOnly />
+              </div>
+            </div>
+
+            <div className="mt-4 flex justify-end">
+              <Btn tone="green" disabled={payBusy} onClick={savePayments}>
+                {payBusy ? 'Saving…' : 'Save payment settings'}
+              </Btn>
+            </div>
+          </div>
         </div>
       )}
     </>

@@ -75,6 +75,11 @@ router.post("/", requireAuth, async (req, res) => {
   if (!["open", "pre_committed"].includes(listing.status)) {
     return res.status(409).json({ error: `listing is not purchasable (status: ${listing.status})` });
   }
+  if (q > listing.quantity) {
+    return res.status(400).json({
+      error: `quantity cannot exceed the listed amount of ${listing.quantity} ${listing.unit}`,
+    });
+  }
   if (listing.minimumPrice != null && p < listing.minimumPrice) {
     return res.status(400).json({
       error: `your offer of GHS ${p} is below the farmer's minimum of GHS ${listing.minimumPrice}`,
@@ -334,6 +339,11 @@ router.post("/:id/fulfill", requireAuth, async (req, res) => {
     if (q != null && (!Number.isFinite(q) || q <= 0)) {
       return res.status(400).json({ error: "actualQuantity must be a positive number" });
     }
+    if (q != null && q > pc.quantity) {
+      return res.status(400).json({
+        error: `actualQuantity cannot exceed the buyer's requested quantity of ${pc.quantity}`,
+      });
+    }
     updated = await precommitmentsRepo.fulfillStep(pc.id, step, {
       actualQuantity: q,
       condition: condition == null || String(condition).trim() === "" ? null : String(condition).trim().slice(0, 200),
@@ -384,11 +394,18 @@ router.post("/:id/fulfill", requireAuth, async (req, res) => {
 
   if (step === "delivered") {
     const farmer = await usersRepo.getUser(listing.farmerId);
-    const tx = pc.transactionId ? await transactionsRepo.getTransaction(pc.transactionId) : null;
+    // Legacy pre-commitments accepted before transaction linking existed may have no
+    // payment record yet - open one (same as the accept path) so escrow/completion
+    // works and the notification below always carries a real price.
+    let tx = pc.transactionId ? await transactionsRepo.getTransaction(pc.transactionId) : null;
+    if (!tx) {
+      const linked = await ensureTransaction(updated);
+      tx = linked.tx;
+    }
     const params = {
       buyerName: buyer.name,
       cropType: listing.cropType,
-      price: tx ? tx.agreedPrice : pc.agreedPrice,
+      price: tx ? tx.agreedPrice : (pc.agreedPrice != null ? pc.agreedPrice : pc.offeredPrice),
     };
     await notificationsRepo.notify({
       userId: farmer.id,

@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { getUser, updateUser } from '../lib/auth'
-import { updateAccount, updatePhoto, changePassword, uploadImage } from '../lib/api'
+import { updateAccount, updatePhoto, changePassword, uploadImage, updatePayoutAccount } from '../lib/api'
 import { useCrops } from '../lib/crops'
 import AppShell from '../components/AppShell'
 import CropPicker from '../components/CropPicker'
@@ -57,6 +57,29 @@ function SettingsContent() {
   const [pwBusy, setPwBusy] = useState(false)
   const [saved, setSaved] = useState(false)
   const fileRef = useRef(null)
+
+  const [payout, setPayout] = useState(() => ({
+    method: user?.bankAccountNumber || user?.bankCode ? 'bank' : 'momo',
+    bankName: user?.bankName || '',
+    bankCode: user?.bankCode || '',
+    bankAccountNumber: user?.bankAccountNumber || '',
+    bankAccountName: user?.bankAccountName || '',
+    momoProvider: user?.momoProvider || '',
+    momoNumber: user?.momoNumber || '',
+  }))
+  const [payoutBusy, setPayoutBusy] = useState(false)
+  const [payoutError, setPayoutError] = useState('')
+  const [payoutSaved, setPayoutSaved] = useState(false)
+
+  const [contact, setContact] = useState(() => ({
+    email: user?.email || '',
+    phone: user?.phone || '',
+  }))
+  const [usernameDraft, setUsernameDraft] = useState(user?.username || '')
+  const [contactPw, setContactPw] = useState('')
+  const [contactBusy, setContactBusy] = useState(false)
+  const [contactError, setContactError] = useState('')
+  const [contactSaved, setContactSaved] = useState(false)
 
   const set = (key) => (e) => {
     setSaved(false)
@@ -143,6 +166,91 @@ function SettingsContent() {
       setPwError(err.message)
     } finally {
       setPwBusy(false)
+    }
+  }
+
+  const setPayoutField = (key) => (v) => {
+    const value = v && v.target ? v.target.value : v
+    setPayoutSaved(false)
+    setPayout((p) => ({ ...p, [key]: value }))
+  }
+
+  const savePayout = async (e) => {
+    e.preventDefault()
+    setPayoutError('')
+    setPayoutSaved(false)
+    setPayoutBusy(true)
+    try {
+      const payload =
+        payout.method === 'bank'
+          ? {
+              bankName: payout.bankName.trim() || undefined,
+              bankCode: payout.bankCode.trim() || undefined,
+              bankAccountNumber: payout.bankAccountNumber.trim() || undefined,
+              bankAccountName: payout.bankAccountName.trim() || undefined,
+            }
+          : {
+              momoProvider: payout.momoProvider || undefined,
+              momoNumber: payout.momoNumber.replace(/[\s-]/g, '') || undefined,
+            }
+      const { user: fresh } = await updatePayoutAccount(payload)
+      syncUser(fresh)
+      setPayoutSaved(true)
+    } catch (err) {
+      setPayoutError(err.message)
+    } finally {
+      setPayoutBusy(false)
+    }
+  }
+
+  const normPhone = (p) => {
+    const d = String(p || '').replace(/[^\d+]/g, '')
+    if (d.startsWith('+')) return d
+    if (d.startsWith('0')) return '+233' + d.slice(1)
+    return d
+  }
+
+  const setContactField = (key) => (e) => {
+    setContactSaved(false)
+    setContact((c) => ({ ...c, [key]: e.target.value }))
+  }
+
+  // Email and phone are login identifiers, so changing them re-asks for the current
+  // password. Only fields the user actually edited are sent; a cleared field is sent
+  // as an empty value so it can be removed (as long as one identifier remains). A
+  // username may be claimed in this same step when the account has none yet — that
+  // doesn't need the password since it's a one-time add, not a change.
+  const saveContact = async (e) => {
+    e.preventDefault()
+    setContactError('')
+    setContactSaved(false)
+    const payload = {}
+    const email = contact.email.trim().toLowerCase()
+    const phone = normPhone(contact.phone)
+    if ((user?.email || '') !== email) payload.email = email || null
+    if ((user?.phone || '') !== phone) payload.phone = phone || null
+    const claimUsername = (user?.username || '').trim()
+      ? ''
+      : usernameDraft.trim()
+    if (claimUsername) {
+      if (!/^[a-zA-Z0-9_.]{3,30}$/.test(claimUsername)) {
+        setContactError('Username must be 3–30 characters using letters, numbers, _ or .')
+        return
+      }
+      payload.username = claimUsername.toLowerCase()
+    }
+    if (!Object.keys(payload).length) return
+    if (payload.email !== undefined || payload.phone !== undefined) payload.currentPassword = contactPw
+    setContactBusy(true)
+    try {
+      const { user: fresh } = await updateAccount(payload)
+      syncUser(fresh)
+      setContactPw('')
+      setContactSaved(true)
+    } catch (err) {
+      setContactError(err.message)
+    } finally {
+      setContactBusy(false)
     }
   }
 
@@ -308,6 +416,165 @@ function SettingsContent() {
                 className="rounded-[10px] bg-leaf px-5 py-2.5 font-sans text-xs font-bold text-white transition hover:bg-leaf-dark disabled:opacity-50"
               >
                 {busy ? 'Saving…' : 'Save changes'}
+              </button>
+            </div>
+          </form>
+        </section>
+
+        {/* Escrow payout account (farmers) */}
+        {user?.role === 'farmer' && (
+          <section className="mb-5 rounded-2xl border border-line bg-white p-5 shadow-sm">
+            <h2 className="mb-1 font-serif text-lg font-semibold tracking-[-.03em] text-ink">Escrow payout account</h2>
+            <p className="mb-3 font-sans text-sm text-muted">
+              When a sale completes, your earnings are paid out to this bank account or mobile-money
+              wallet. The money is released as soon as the buyer confirms delivery.
+            </p>
+            <form onSubmit={savePayout}>
+              <div className="mb-3 flex gap-2">
+                {['bank', 'momo'].map((m) => (
+                  <button
+                    key={m}
+                    type="button"
+                    onClick={() => {
+                      setPayoutSaved(false)
+                      setPayout((p) => ({ ...p, method: m }))
+                    }}
+                    className={`rounded-full px-4 py-1.5 font-sans text-xs font-bold transition ${
+                      payout.method === m ? 'bg-leaf text-white' : 'border border-line bg-paper text-muted hover:bg-white'
+                    }`}
+                  >
+                    {m === 'bank' ? 'Bank account' : 'Mobile money'}
+                  </button>
+                ))}
+              </div>
+
+              {payout.method === 'bank' ? (
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className={fieldCls}>
+                    <label className={labelCls}>Bank name</label>
+                    <input className={inputCls} value={payout.bankName} onChange={setPayoutField('bankName')} placeholder="e.g. GCB" />
+                  </div>
+                  <div className={fieldCls}>
+                    <label className={labelCls}>Bank code</label>
+                    <input className={inputCls} value={payout.bankCode} onChange={setPayoutField('bankCode')} placeholder="e.g. 040" />
+                  </div>
+                  <div className={fieldCls}>
+                    <label className={labelCls}>Account number</label>
+                    <input className={inputCls} value={payout.bankAccountNumber} onChange={setPayoutField('bankAccountNumber')} placeholder="Account number" />
+                  </div>
+                  <div className={fieldCls}>
+                    <label className={labelCls}>Account name</label>
+                    <input className={inputCls} value={payout.bankAccountName} onChange={setPayoutField('bankAccountName')} placeholder="Name on the account" />
+                  </div>
+                </div>
+              ) : (
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className={fieldCls}>
+                    <label className={labelCls}>Mobile money provider</label>
+                    <SearchableSelect value={payout.momoProvider} onChange={setPayoutField('momoProvider')} options={[{ value: '', label: 'Select provider' }, ...MOBILE_MONEY]} placeholder="Select provider" />
+                  </div>
+                  <div className={fieldCls}>
+                    <label className={labelCls}>Mobile money number</label>
+                    <input className={inputCls} value={payout.momoNumber} onChange={setPayoutField('momoNumber')} placeholder="e.g. 0241234567" />
+                  </div>
+                </div>
+              )}
+
+              {payoutError && <p className="mb-3 font-sans text-xs text-red-600">{payoutError}</p>}
+              <div className="flex items-center justify-end gap-3">
+                {payoutSaved && <span className="font-sans text-xs font-semibold text-leaf">Saved ✓</span>}
+                <button
+                  type="submit"
+                  disabled={payoutBusy}
+                  className="rounded-[10px] bg-leaf px-5 py-2.5 font-sans text-xs font-bold text-white transition hover:bg-leaf-dark disabled:opacity-50"
+                >
+                  {payoutBusy ? 'Saving…' : 'Save payout account'}
+                </button>
+              </div>
+            </form>
+          </section>
+        )}
+
+        {/* Login & contact */}
+        <section className="mb-5 rounded-2xl border border-line bg-white p-5 shadow-sm">
+          <h2 className="mb-1 font-serif text-lg font-semibold tracking-[-.03em] text-ink">Login &amp; contact</h2>
+          <p className="mb-3 font-sans text-sm text-muted">
+            Your email and phone are how you sign in, and payment links and notifications go to them.
+          </p>
+          <form onSubmit={saveContact}>
+            <div className="mb-3">
+              <label className={labelCls}>Username</label>
+              {user?.username ? (
+                <>
+                  <div className="rounded-[10px] border border-line bg-paper px-3 py-2.5 font-sans text-sm text-muted">
+                    {user.username}
+                  </div>
+                  <p className="mt-1 font-sans text-[11px] text-muted">Chosen at sign-up and can't be changed.</p>
+                </>
+              ) : (
+                <>
+                  <input
+                    className={inputCls}
+                    type="text"
+                    value={usernameDraft}
+                    onChange={(e) => {
+                      setContactSaved(false)
+                      setUsernameDraft(e.target.value)
+                    }}
+                    placeholder="Choose a username (e.g. kwame24)"
+                    maxLength="30"
+                  />
+                  <p className="mt-1 font-sans text-[11px] text-muted">
+                    Letters, numbers, _ or . — 3–30 characters. You can only set this once.
+                  </p>
+                </>
+              )}
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className={fieldCls}>
+                <label className={labelCls}>Email</label>
+                <input
+                  className={inputCls}
+                  type="email"
+                  value={contact.email}
+                  onChange={setContactField('email')}
+                  placeholder="you@example.com"
+                />
+              </div>
+              <div className={fieldCls}>
+                <label className={labelCls}>Phone</label>
+                <input
+                  className={inputCls}
+                  type="tel"
+                  value={contact.phone}
+                  onChange={setContactField('phone')}
+                  placeholder="024 123 4567"
+                />
+                <p className="mt-1 font-sans text-[11px] text-muted">Stored as +233… so you can sign in with either.</p>
+              </div>
+              <div className="sm:col-span-2">
+                <label className={labelCls}>Current password</label>
+                <input
+                  className={inputCls}
+                  type="password"
+                  value={contactPw}
+                  onChange={(e) => {
+                    setContactSaved(false)
+                    setContactPw(e.target.value)
+                  }}
+                  placeholder="Required to change email or phone"
+                />
+              </div>
+            </div>
+            {contactError && <p className="mb-3 font-sans text-xs text-red-600">{contactError}</p>}
+            <div className="flex items-center justify-end gap-3">
+              {contactSaved && <span className="font-sans text-xs font-semibold text-leaf">Saved ✓</span>}
+              <button
+                type="submit"
+                disabled={contactBusy}
+                className="rounded-[10px] bg-leaf px-5 py-2.5 font-sans text-xs font-bold text-white transition hover:bg-leaf-dark disabled:opacity-50"
+              >
+                {contactBusy ? 'Saving…' : 'Save contact details'}
               </button>
             </div>
           </form>

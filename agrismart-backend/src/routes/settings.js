@@ -76,4 +76,42 @@ router.put("/commission", requireAuth, requireRole("admin"), async (req, res) =>
   res.json({ config: settings, updatedAt: row.updatedAt });
 });
 
+const PAYOUT_MODES = ["auto", "manual"];
+
+function sanitizePayments(body) {
+  const p = body && typeof body === "object" ? body : {};
+  const out = {
+    escrowEnabled: p.escrowEnabled === true,
+    provider: "paystack",
+    currency: p.currency || "GHS",
+    payoutMode: "auto",
+  };
+  if (p.payoutMode !== undefined && !PAYOUT_MODES.includes(p.payoutMode)) {
+    return { error: "payoutMode must be 'auto' or 'manual'" };
+  }
+  if (p.payoutMode) out.payoutMode = p.payoutMode;
+  const pct = num(p.depositPercent);
+  if (pct !== undefined && (Number.isNaN(pct) || pct < 0 || pct > 100)) {
+    return { error: "depositPercent must be between 0 and 100" };
+  }
+  out.depositPercent = pct === undefined ? 30 : pct;
+  return { config: out };
+}
+
+// GET /api/settings/payments - current payment/escrow policy (admin)
+router.get("/payments", requireAuth, requireRole("admin"), async (_req, res) => {
+  const config = await settingsRepo.getPayments();
+  const row = await settingsRepo.getSetting("payments");
+  res.json({ config, updatedAt: row ? row.updatedAt : null });
+});
+
+// PUT /api/settings/payments - replace the payment/escrow policy (admin)
+router.put("/payments", requireAuth, requireRole("admin"), async (req, res) => {
+  const result = sanitizePayments(req.body.config || req.body);
+  if (result.error) return res.status(400).json({ error: result.error });
+  const settings = await settingsRepo.setPayments(result.config, req.user.id);
+  const row = await settingsRepo.getSetting("payments");
+  res.json({ config: settings, updatedAt: row.updatedAt });
+});
+
 module.exports = router;
