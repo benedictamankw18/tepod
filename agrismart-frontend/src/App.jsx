@@ -14,6 +14,9 @@ import ActivityPage from './pages/Activity'
 import FarmsPage from './pages/Farms'
 import PricesPage from './pages/Prices'
 import WeatherGuidePage from './pages/WeatherGuide'
+import CropDemandPage from './pages/CropDemand'
+import ReportsPage from './pages/Reports'
+import ServicesPage from './pages/Services'
 import SupportPage from './pages/Support'
 import BuyerVerification from './pages/BuyerVerification'
 import MyPreCommitmentsPage from './pages/MyPreCommitments'
@@ -121,6 +124,36 @@ export default function App() {
             <PageTransition>
               <ProtectedRoute>
                 <WeatherGuidePage />
+              </ProtectedRoute>
+            </PageTransition>
+          }
+        />
+        <Route
+          path="/demand"
+          element={
+            <PageTransition>
+              <ProtectedRoute>
+                <CropDemandPage />
+              </ProtectedRoute>
+            </PageTransition>
+          }
+        />
+        <Route
+          path="/services"
+          element={
+            <PageTransition>
+              <ProtectedRoute>
+                <ServicesPage />
+              </ProtectedRoute>
+            </PageTransition>
+          }
+        />
+        <Route
+          path="/reports"
+          element={
+            <PageTransition>
+              <ProtectedRoute>
+                <ReportsPage />
               </ProtectedRoute>
             </PageTransition>
           }

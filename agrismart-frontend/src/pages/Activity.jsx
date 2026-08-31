@@ -105,11 +105,11 @@ function CommitmentCard({ c, onRespond, onFulfill, busy }) {
     <div className="rounded-[13px] border border-line bg-surface p-3.5">
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
-          <strong className="block truncate font-serif text-[15px] font-semibold capitalize text-ink">
+          <strong className="block font-serif text-[15px] font-semibold capitalize text-ink sm:truncate">
             {c.buyer?.name || 'Buyer'} · {c.listing?.cropType || 'Produce'} · {c.quantity}{' '}
             {c.listing?.unit}
           </strong>
-          <p className="mt-1 truncate font-sans text-[11px] leading-snug text-muted">
+          <p className="mt-1 font-sans text-[11px] leading-snug text-muted sm:truncate">
             {line} · {priceLine}
           </p>
         </div>
@@ -275,7 +275,7 @@ function CommitmentCard({ c, onRespond, onFulfill, busy }) {
           )}
 
           {transport ? (
-            <p className="truncate border-t border-line pt-2 font-sans text-[11px] text-muted">
+            <p className="border-t border-line pt-2 font-sans text-[11px] text-muted sm:truncate">
               Transport: {transport.status}
               {transport.pickupLocation ? ` · ${transport.pickupLocation}` : ''}
             </p>
@@ -392,7 +392,7 @@ function ActivityContent() {
         ) : commitments.length === 0 ? (
           <Empty>Your latest buyer commitments will appear here.</Empty>
         ) : (
-          <div className="grid grid-cols-2 gap-3.5 md:grid-cols-3 xl:grid-cols-4">
+          <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4">
             {commitments.slice(0, 8).map((c) => (
               <CommitmentCard key={c.id} c={c} onRespond={respond} onFulfill={fulfill} busy={busy} />
             ))}

@@ -8,6 +8,7 @@ import Reveal from '../components/Reveal'
 import { WeatherRiskCard, AIRecommendCard } from '../components/AIAdvisor'
 import { getMyFarms, getFarmerCommitments, getReceivedReviews } from '../lib/api'
 import { primaryCropFor, useCurrentPrice } from '../lib/app'
+import { SERVICE_CATEGORIES } from '../lib/services'
 
 function greetingFor(date = new Date()) {
   const h = date.getHours()
@@ -126,11 +127,45 @@ function DashboardContent() {
                 <AIRecommendCard crop={primaryCropFor(user)} />
               </div>
 
+              <Panel>
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <h2 className="font-serif text-[19px] font-semibold tracking-[-.04em] text-ink">
+                      What do you need today?
+                    </h2>
+                    <p className="mt-1 font-sans text-xs text-muted">
+                      Loans, inputs, equipment, transport or storage — we connect you with verified providers.
+                    </p>
+                  </div>
+                  <Link
+                    to="/services"
+                    className="shrink-0 rounded-[10px] bg-leaf px-4 py-2.5 text-center font-sans text-xs font-bold text-white transition hover:bg-leaf-dark"
+                  >
+                    Explore services →
+                  </Link>
+                </div>
+                <div className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-6">
+                  {SERVICE_CATEGORIES.map((s) => (
+                    <Link
+                      key={s.id}
+                      to="/services"
+                      className="rounded-[12px] border border-line bg-white px-2 py-2.5 text-center font-sans text-[11px] font-semibold text-ink transition hover:border-leaf hover:text-leaf"
+                    >
+                      <span className="block text-lg" aria-hidden="true">
+                        {s.emoji}
+                      </span>
+                      {s.label}
+                    </Link>
+                  ))}
+                </div>
+              </Panel>
+
               <div className="grid gap-3 sm:grid-cols-2">
                 <QuickLink to="/marketplace" title="Market place" sub="Browse produce and create listings." />
                 <QuickLink to="/activity" title="My activity" sub="Review buyer commitments on your harvest." />
                 <QuickLink to="/farms" title="My farms" sub="Manage pre and post-harvest farms." />
                 <QuickLink to="/weather" title="Weather guide" sub="7-day field forecast and risk for your farm." />
+                <QuickLink to="/reports" title="Sales report" sub="Earnings, top goods and your sales trend." />
               </div>
 
               {!user?.verified && (
@@ -189,6 +224,20 @@ function DashboardContent() {
               <div className="rounded-[10px] border border-line bg-surface px-4 py-3.5">
                 <Empty>Your order history and saved favourites live on the Market place page.</Empty>
               </div>
+
+              <Panel>
+                <h2 className="font-serif text-[19px] font-semibold tracking-[-.04em] text-ink">Farm services</h2>
+                <p className="mt-1 font-sans text-xs leading-relaxed text-muted">
+                  Need financing, supplies, equipment, transport, or storage for a sourcing run? We connect you with
+                  verified providers.
+                </p>
+                <Link
+                  to="/services"
+                  className="mt-3 inline-block rounded-[10px] bg-leaf px-4 py-2.5 font-sans text-xs font-bold text-white transition hover:bg-leaf-dark"
+                >
+                  Explore services →
+                </Link>
+              </Panel>
             </div>
           )}
         </div>

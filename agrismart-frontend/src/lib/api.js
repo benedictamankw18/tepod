@@ -311,6 +311,14 @@ export function getPriceGuide(cropType, market) {
   return request('GET', `/api/ai/price-guide?${q.toString()}`)
 }
 
+export function getCropGuide({ region, plantMonth } = {}) {
+  const q = new URLSearchParams()
+  if (region && region !== 'all') q.set('region', region)
+  if (plantMonth) q.set('plantMonth', String(plantMonth))
+  const str = q.toString()
+  return request('GET', `/api/ai/crop-guide${str ? `?${str}` : ''}`)
+}
+
 function numeric(v) {
   return typeof v === 'number' && Number.isFinite(v)
 }
@@ -444,6 +452,10 @@ export function getAdminTransactions(params = {}) {
 
 export function markTransactionPaid(id) {
   return request('POST', `/api/transactions/${id}/pay`)
+}
+
+export function getMyReport(params = {}) {
+  return request('GET', `/api/reports/my${qs(params)}`)
 }
 
 export function getAdminPreCommitments(params = {}) {

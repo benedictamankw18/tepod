@@ -13,7 +13,25 @@ const app = createApp();
 // ussd.test.js cave truncateAll() in their own beforeAll (each in its own
 // CI worker/process). A third concurrent TRUNCATE ... CASCADE on the shared DB
 // deadlocks with theirs, so this suite only ever touches rows it owns (its own
-// markets via seedPrices), which is also safe against their truncates.
+// markets via seedPrices, its own farmers), which is also safe against their
+// truncates.
+
+const OWN_PHONES = ["+233246680001", "+233246680002", "+233246680003"];
+
+beforeAll(async () => {
+  // Drop leftover rows from an interrupted previous run so re-runs (and the shared
+  // test DB where api.test.js truncateAll has already run) stay deterministic.
+  // Row-level DELETEs on our own fixed phones only — never a CASCADE truncate.
+  await adminPool.query(
+    "DELETE FROM farms WHERE farmer_id IN (SELECT id FROM users WHERE phone = ANY($1::text[]))",
+    [OWN_PHONES]
+  );
+  await adminPool.query(
+    "DELETE FROM buyer_verifications WHERE user_id IN (SELECT id FROM users WHERE phone = ANY($1::text[]))",
+    [OWN_PHONES]
+  );
+  await adminPool.query("DELETE FROM users WHERE phone = ANY($1::text[])", [OWN_PHONES]);
+});
 
 afterAll(async () => {
   await closeAdmin();
@@ -179,5 +197,175 @@ describe("GET /api/ai/weather-guide", () => {
     const token = farmer.body.token;
     const res = await request(app).get("/api/ai/weather-guide").set("Authorization", `Bearer ${token}`);
     expect(res.status).toBe(404);
+  });
+});
+
+describe("GET /api/ai/crop-guide", () => {
+  // This suite owns market_prices / crop_area rows (no other test suite touches
+  // them, and truncateAll() deliberately excludes them). Ensure the empty tables
+  // exist in case api.test.js has not applied the schema yet, then seed our own
+  // rows (delete-then-insert so the suite is re-runnable).
+  beforeAll(async () => {
+    await adminPool.query(`
+      CREATE TABLE IF NOT EXISTS market_prices (
+        id             SERIAL PRIMARY KEY,
+        region         TEXT NOT NULL,
+        district       TEXT NOT NULL DEFAULT '',
+        market         TEXT NOT NULL,
+        commodity_key  TEXT NOT NULL,
+        commodity_name TEXT NOT NULL,
+        price          NUMERIC(10,2) NOT NULL,
+        date           DATE NOT NULL,
+        source         TEXT NOT NULL DEFAULT 'retail',
+        created_at     TIMESTAMPTZ NOT NULL DEFAULT now()
+      )
+    `);
+    await adminPool.query(`
+      CREATE TABLE IF NOT EXISTS crop_area (
+        commodity_key  TEXT NOT NULL,
+        commodity_name TEXT NOT NULL,
+        year           INTEGER NOT NULL,
+        hectares       NUMERIC(12,0) NOT NULL,
+        PRIMARY KEY (commodity_key, year)
+      )
+    `);
+
+    for (const region of ["Ashanti", "Volta"]) {
+      await adminPool.query("DELETE FROM market_prices WHERE region = $1", [region]);
+    }
+    for (const key of ["tomato", "pepper"]) {
+      await adminPool.query("DELETE FROM crop_area WHERE commodity_key = $1", [key]);
+    }
+
+    // Tomato (Ashanti): steadily rising retail prices Apr-Jul 2025.
+    // Maize (Ashanti): gently falling. Pepper (Volta): rising.
+    const tomato = [
+      ["2025-04-08", 10],
+      ["2025-04-22", 11],
+      ["2025-05-06", 12],
+      ["2025-05-20", 13],
+      ["2025-06-04", 14],
+      ["2025-06-18", 15],
+      ["2025-07-02", 16],
+    ];
+    const maize = [
+      ["2025-04-08", 40],
+      ["2025-05-06", 39],
+      ["2025-06-04", 38],
+      ["2025-07-02", 37],
+    ];
+    const pepper = [
+      ["2025-04-08", 25],
+      ["2025-05-06", 26],
+      ["2025-06-04", 27],
+      ["2025-07-02", 28],
+    ];
+    for (const [date, price] of tomato) {
+      await adminPool.query(
+        "INSERT INTO market_prices (region, district, market, commodity_key, commodity_name, price, date) VALUES ('Ashanti','Kumasi','Kumasi Central','tomato','Tomato Local',$1,$2)",
+        [price, date]
+      );
+    }
+    for (const [date, price] of maize) {
+      await adminPool.query(
+        "INSERT INTO market_prices (region, district, market, commodity_key, commodity_name, price, date) VALUES ('Ashanti','Kwabre','Ejisu','maize','Maize Yellow',$1,$2)",
+        [price, date]
+      );
+    }
+    for (const [date, price] of pepper) {
+      await adminPool.query(
+        "INSERT INTO market_prices (region, district, market, commodity_key, commodity_name, price, date) VALUES ('Volta','Ho','Ho Central','pepper','Fresh Pepper Legon 18',$1,$2)",
+        [price, date]
+      );
+    }
+    await adminPool.query(
+      "INSERT INTO crop_area (commodity_key, commodity_name, year, hectares) VALUES ('tomato','Tomato',2019,1000)"
+    );
+    await adminPool.query(
+      "INSERT INTO crop_area (commodity_key, commodity_name, year, hectares) VALUES ('tomato','Tomato',2023,1100)"
+    );
+    await adminPool.query(
+      "INSERT INTO crop_area (commodity_key, commodity_name, year, hectares) VALUES ('pepper','Pepper',2019,500)"
+    );
+    await adminPool.query(
+      "INSERT INTO crop_area (commodity_key, commodity_name, year, hectares) VALUES ('pepper','Pepper',2023,520)"
+    );
+  });
+
+  afterAll(async () => {
+    await adminPool.query("DELETE FROM market_prices WHERE region = 'Greater Accra' AND commodity_key = 'beef'");
+  });
+
+  test("returns ranked commodities with drivers, attribution and rule advice", async () => {
+    const res = await request(app).get("/api/ai/crop-guide");
+    expect(res.status).toBe(200);
+    expect(res.body.available).toBe(true);
+
+    const types = res.body.commodities.map((c) => c.cropType);
+    expect(types).toContain("tomato");
+    expect(types).toContain("maize");
+    expect(types).toContain("pepper");
+
+    const tomato = res.body.commodities.find((c) => c.cropType === "tomato");
+    const maize = res.body.commodities.find((c) => c.cropType === "maize");
+    expect(tomato.direction).toBe("up"); // last month clearly above the month before
+    expect(["high", "medium", "low"]).toContain(tomato.demandLevel);
+    expect(tomato.score).toBeGreaterThanOrEqual(0);
+    expect(tomato.score).toBeLessThanOrEqual(100);
+    expect(tomato.emoji).toBeTruthy();
+    expect(tomato.price.trendPct).toBeGreaterThan(0);
+    expect(tomato.drivers.length).toBeGreaterThanOrEqual(2);
+    expect(maize.score).toBeLessThan(tomato.score); // falling crop ranks below rising one
+    expect([...res.body.commodities].sort((a, b) => b.score - a.score)[0].cropType).toBe(tomato.cropType);
+
+    expect(res.body.availableRegions).toEqual(expect.arrayContaining(["Ashanti", "Volta"]));
+    expect(res.body.observed).toMatch(/2025/);
+    expect(res.body.attribution.length).toBeGreaterThan(5);
+    expect(res.body.advice.source).toBe("rules");
+    expect(res.body.advice.recommendation.length).toBeGreaterThan(10);
+  });
+
+  test("region filter limits the ranking to that region", async () => {
+    const res = await request(app).get("/api/ai/crop-guide").query({ region: "Ashanti" });
+    expect(res.status).toBe(200);
+    expect(res.body.available).toBe(true);
+    const types = res.body.commodities.map((c) => c.cropType);
+    expect(types).toContain("tomato");
+    expect(types).toContain("maize");
+    expect(types).not.toContain("pepper"); // pepper rows are only in Volta
+    expect(res.body.regionLabel).toBe("Ashanti");
+  });
+
+  test("unknown region -> 400 with available regions listed", async () => {
+    const res = await request(app).get("/api/ai/crop-guide").query({ region: "Incomprehensive" });
+    expect(res.status).toBe(400);
+    expect(res.body.availableRegions).toContain("Ashanti");
+  });
+
+  test("plantMonth adds a harvest-month seasonal signal", async () => {
+    const res = await request(app).get("/api/ai/crop-guide").query({ region: "Ashanti", plantMonth: 1 });
+    expect(res.status).toBe(200);
+    expect(res.body.plantMonth).toBe(1);
+    const tomato = res.body.commodities.find((c) => c.cropType === "tomato");
+    expect(tomato.seasonal).toBeTruthy();
+    expect(tomato.seasonal.harvestMonth).toBe(4); // tomato matures ~3 months
+    expect(typeof tomato.seasonal.liftPct).toBe("number");
+  });
+
+  test("plantMonth out of range -> 400", async () => {
+    const res = await request(app).get("/api/ai/crop-guide").query({ plantMonth: 13 });
+    expect(res.status).toBe(400);
+  });
+
+  test("region with only unmapped commodities -> available false", async () => {
+    await adminPool.query(
+      "INSERT INTO market_prices (region, district, market, commodity_key, commodity_name, price, date) VALUES ('Greater Accra','Ablekuma','Makola','beef','Beef',50,'2025-07-02')"
+    );
+    const res = await request(app).get("/api/ai/crop-guide").query({ region: "Greater Accra" });
+    expect(res.status).toBe(200);
+    expect(res.body.available).toBe(false);
+    expect(res.body.commodities).toHaveLength(0);
+    expect(res.body.advice).toBeNull();
+    expect(res.body.availableRegions).toContain("Greater Accra");
   });
 });

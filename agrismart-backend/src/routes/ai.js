@@ -11,6 +11,7 @@ const farmsRepo = require("../repositories/farms");
 const { geocode } = require("../services/geocode");
 const weatherService = require("../services/weather");
 const priceGuideService = require("../services/priceGuide");
+const cropDemandService = require("../services/cropDemand");
 const openrouter = require("../services/openrouter");
 
 const router = express.Router();
@@ -26,6 +27,12 @@ const PRICE_SYSTEM =
   "Reply with ONLY JSON: {\"recommendation\": string (1-2 sentences starting with a clear verdict: sell now vs wait, given spoilage risk), " +
   "\"reasons\": string[1..3], \"warning\": string (empty string if none), \"nextSteps\": string[1..3]}. " +
   "Use ONLY the figures provided. Never invent prices, dates, or percentages. No markdown.";
+
+const CROP_DEMAND_SYSTEM =
+  "You are a concise demand advisor for smallholder farmers in Ghana planning which crops to plant. " +
+  "Reply with ONLY JSON: {\"recommendation\": string (1-2 sentences naming the strongest crops and when a chosen planting month would harvest), " +
+  "\"reasons\": string[1..3] citing ONLY the scores/percentages given, \"warning\": string (empty string if none), \"nextSteps\": string[1..3]}. " +
+  "Use ONLY the figures provided. Never invent data, prices, or percentages. No markdown.";
 
 function cropLabel(user) {
   const c = (user.primaryCrops && user.primaryCrops[0]) || (user.cropTypes && user.cropTypes[0]);
@@ -179,6 +186,75 @@ router.get("/price-guide", async (req, res, next) => {
           forecast: guide.forecast,
           confidence: guide.confidence,
           comparison: (guide.comparison || []).slice(0, 3),
+        })
+      );
+      if (llm) guide.advice = llm;
+    }
+    res.json(guide);
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * @openapi
+ * /api/ai/crop-guide:
+ *   get:
+ *     tags: [AI]
+ *     summary: Rank crops by demand signals from regional market surveys (AI Crop Demand Guide)
+ *     parameters:
+ *       - in: query
+ *         name: region
+ *         schema: { type: string, example: Ashanti }
+ *         description: Optional Ghana region; defaults to all regions combined
+ *       - in: query
+ *         name: plantMonth
+ *         schema: { type: integer, minimum: 1, maximum: 12, example: 3 }
+ *         description: Optional planting month (1-12) to add a seasonal signal at the expected harvest
+ *     responses:
+ *       200:
+ *         description: Ranked commodity demand rows (score 0-100, level, direction, drivers) and advice
+ *       400:
+ *         description: Unknown region or invalid plantMonth
+ */
+router.get("/crop-guide", async (req, res, next) => {
+  try {
+    const region = req.query.region ? String(req.query.region).trim() : null;
+    let plantMonth = null;
+    if (req.query.plantMonth !== undefined && req.query.plantMonth !== "") {
+      plantMonth = Number(req.query.plantMonth);
+      if (!Number.isInteger(plantMonth) || plantMonth < 1 || plantMonth > 12) {
+        return res.status(400).json({ error: "plantMonth must be a whole number from 1 to 12." });
+      }
+    }
+
+    const regions = await cropDemandService.listRegions();
+    const known = regions.map((r) => r.region.toLowerCase());
+    if (region && !known.includes(region.toLowerCase())) {
+      return res.status(400).json({
+        error: `No market data for "${region}". ${regions.length ? `Regions with data: ${regions.map((r) => r.region).join(", ")}.` : "Market data has not been imported yet."}`,
+        availableRegions: regions.map((r) => r.region),
+      });
+    }
+
+    const guide = await cropDemandService.demandGuide({ region, plantMonth });
+    if (guide.available) {
+      const llm = await openrouter.explain(
+        CROP_DEMAND_SYSTEM,
+        JSON.stringify({
+          region: guide.regionLabel,
+          plantMonth: guide.plantMonth,
+          observedWindow: guide.observed,
+          commodities: guide.commodities.slice(0, 6).map((c) => ({
+            crop: c.name,
+            level: c.demandLevel,
+            score: c.score,
+            direction: c.direction,
+            trendPct: c.price.trendPct,
+            levelPct: c.price.levelPct,
+            currentPrice: c.price.avg,
+            seasonalLiftAtHarvest: c.seasonal ? c.seasonal.liftPct : null,
+          })),
         })
       );
       if (llm) guide.advice = llm;

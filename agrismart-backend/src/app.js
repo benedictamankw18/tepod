@@ -29,6 +29,7 @@ const reviewsRoutes = require("./routes/reviews");
 const settingsRoutes = require("./routes/settings");
 const paymentsRoutes = require("./routes/payments");
 const aiRoutes = require("./routes/ai");
+const reportsRoutes = require("./routes/reports");
 
 function createApp() {
   const app = express();
@@ -70,6 +71,7 @@ function createApp() {
   app.use("/api/settings", settingsRoutes);
   app.use("/api/payments", paymentsRoutes);
   app.use("/api/ai", aiRoutes);
+  app.use("/api/reports", reportsRoutes);
   app.use("/ussd", ussdRoutes);
 
   // Serve uploaded images (live photos, produce, farm) from /uploads/*.
