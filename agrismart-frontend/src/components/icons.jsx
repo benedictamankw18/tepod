@@ -186,10 +186,21 @@ export function InfoIcon() {
   )
 }
 
+export function CloudSunIcon() {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
+      <circle cx="8" cy="7" r="3" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M8 1.5V3M12.75 6h1.5M3 6h1.5M11.25 2.25l-1.06 1.06M4.75 2.25l1.06 1.06" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15a4.5 4.5 0 004.5 4.5H18a3.75 3.75 0 001.332-7.257 3 3 0 00-3.758-3.848 5.25 5.25 0 00-10.233 2.33A4.502 4.502 0 002.25 15z" />
+    </svg>
+  )
+}
+
 export const ICONS = {
   dashboard: GridIcon,
   requests: InboxIcon,
   farms: MapPinIcon,
+  weather: CloudSunIcon,
   marketplace: CartIcon,
   prices: ChartIcon,
   support: SupportIcon,

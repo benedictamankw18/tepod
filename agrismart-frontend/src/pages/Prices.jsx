@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import AppShell, { useAppShell } from '../components/AppShell'
 import { Panel, PanelHead } from '../components/Panel'
 import Chip from '../components/Chip'
-import PriceSignal from '../components/PriceSignal'
+import PriceForecast from '../components/PriceForecast'
 import Empty from '../components/Empty'
 import { primaryCropFor } from '../lib/app'
 import { useCrops } from '../lib/crops'
@@ -43,7 +43,7 @@ function PricesContent() {
           Market price signals
         </h1>
         <p className="mt-2 font-sans text-sm text-muted">
-          Recent asking prices across active listings, plus a trend signal for the crop you follow.
+          Recent asking prices across active listings, with a three-day forecast for the crop you follow.
         </p>
       </header>
 
@@ -58,7 +58,7 @@ function PricesContent() {
         </div>
       </Panel>
 
-      <PriceSignal crop={crop} />
+      <PriceForecast crop={crop} />
 
       <Panel>
         <PanelHead title="Current prices" sub="Low / mid / high asking prices across open listings." />

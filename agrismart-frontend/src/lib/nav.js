@@ -15,12 +15,13 @@ export function navLinks({ isBuyerAccount, isFarmer, isAdmin }) {
     : [
         { id: 'dashboard', label: 'Dashboard', to: '/' },
         { id: 'marketplace', label: 'Market place', to: '/marketplace' },
-        ...(isFarmer
-          ? [
-              { id: 'requests', label: 'My activity', to: '/activity' },
-              { id: 'farms', label: 'My farms', to: '/farms' },
-            ]
-          : []),
+...(isFarmer
+              ? [
+                  { id: 'requests', label: 'My activity', to: '/activity' },
+                  { id: 'farms', label: 'My farms', to: '/farms' },
+                  { id: 'weather', label: 'Weather guide', to: '/weather' },
+                ]
+              : []),
         { id: 'notifications', label: 'Notifications', to: '/notifications' },
         { id: 'prices', label: 'Price guide', to: '/prices' },
         { id: 'support', label: 'Support', to: '/support' },

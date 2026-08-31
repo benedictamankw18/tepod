@@ -282,6 +282,7 @@ const options = {
       { name: "Units" },
       { name: "Regions" },
       { name: "USSD" },
+      { name: "AI" },
     ],
   },
   apis: ["src/routes/*.js"],

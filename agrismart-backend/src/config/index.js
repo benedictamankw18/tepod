@@ -22,4 +22,9 @@ module.exports = {
   paystackWebhookSecret: process.env.PAYSTACK_WEBHOOK_SECRET,
   paystackCurrency: process.env.PAYSTACK_CURRENCY || "GHS",
   paystackBaseUrl: process.env.PAYSTACK_BASE_URL || "https://api.paystack.co",
+  // OpenRouter: optional LLM explainer for the weather + price guide. When the key
+  // is absent the guide still works — it just serves the rule-based advice copy.
+  openrouterApiKey: process.env.OPENROUTER_API_KEY,
+  openrouterBaseUrl: process.env.OPENROUTER_BASE_URL || "https://openrouter.ai/api/v1",
+  openrouterModel: process.env.OPENROUTER_MODEL || "openai/gpt-4o",
 };

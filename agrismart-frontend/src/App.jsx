@@ -13,6 +13,7 @@ import MarketplacePage from './pages/Marketplace'
 import ActivityPage from './pages/Activity'
 import FarmsPage from './pages/Farms'
 import PricesPage from './pages/Prices'
+import WeatherGuidePage from './pages/WeatherGuide'
 import SupportPage from './pages/Support'
 import BuyerVerification from './pages/BuyerVerification'
 import MyPreCommitmentsPage from './pages/MyPreCommitments'
@@ -110,6 +111,16 @@ export default function App() {
             <PageTransition>
               <ProtectedRoute>
                 <PricesPage />
+              </ProtectedRoute>
+            </PageTransition>
+          }
+        />
+        <Route
+          path="/weather"
+          element={
+            <PageTransition>
+              <ProtectedRoute>
+                <WeatherGuidePage />
               </ProtectedRoute>
             </PageTransition>
           }

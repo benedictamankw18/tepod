@@ -621,9 +621,13 @@ describe("marketplace loop", () => {
 describe("prices", () => {
   test("current price returns structured data or 404 for unknown crop", async () => {
     const res = await request(app).get("/api/prices/current?cropType=tomato");
-    // Data comes from seed; if unseeded it's 404. Either is a valid response shape.
-    expect([200, 404]).toContain(res.status);
-    if (res.status === 200) expect(res.body.averagePrice).toBeGreaterThan(0);
+    // The route returns 200 with an explicit null averagePrice when no data yet,
+    // or 200 with a positive average once price rows exist. Both are valid.
+    expect(res.status).toBe(200);
+    expect(res.body.cropType).toBe("tomato");
+    if (res.body.averagePrice !== null && typeof res.body.averagePrice !== "undefined") {
+      expect(res.body.averagePrice).toBeGreaterThan(0);
+    }
   });
 });
 

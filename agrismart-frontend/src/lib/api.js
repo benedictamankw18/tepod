@@ -298,6 +298,19 @@ export function getPriceHistory(cropType, market, weeks = 8) {
   return request('GET', `/api/prices/history?${q.toString()}`)
 }
 
+// --- AI guide (weather + price) ---
+
+export function getWeatherGuide(farmId) {
+  const q = farmId ? new URLSearchParams({ farmId }) : null
+  return request('GET', `/api/ai/weather-guide${q ? `?${q.toString()}` : ''}`)
+}
+
+export function getPriceGuide(cropType, market) {
+  const q = new URLSearchParams({ cropType })
+  if (market && market !== 'all markets') q.set('market', market)
+  return request('GET', `/api/ai/price-guide?${q.toString()}`)
+}
+
 function numeric(v) {
   return typeof v === 'number' && Number.isFinite(v)
 }

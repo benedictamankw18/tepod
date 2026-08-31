@@ -3,9 +3,9 @@ import { Link, useNavigate } from 'react-router-dom'
 import AppShell, { useAppShell } from '../components/AppShell'
 import StatCard from '../components/StatCard'
 import { Panel } from '../components/Panel'
-import PriceSignal from '../components/PriceSignal'
 import Empty from '../components/Empty'
 import Reveal from '../components/Reveal'
+import { WeatherRiskCard, AIRecommendCard } from '../components/AIAdvisor'
 import { getMyFarms, getFarmerCommitments, getReceivedReviews } from '../lib/api'
 import { primaryCropFor, useCurrentPrice } from '../lib/app'
 
@@ -121,11 +121,16 @@ function DashboardContent() {
                 ))}
               </section>
 
+              <div className="grid gap-3 lg:grid-cols-2">
+                <WeatherRiskCard />
+                <AIRecommendCard crop={primaryCropFor(user)} />
+              </div>
+
               <div className="grid gap-3 sm:grid-cols-2">
                 <QuickLink to="/marketplace" title="Market place" sub="Browse produce and create listings." />
                 <QuickLink to="/activity" title="My activity" sub="Review buyer commitments on your harvest." />
                 <QuickLink to="/farms" title="My farms" sub="Manage pre and post-harvest farms." />
-                <QuickLink to="/prices" title="Price guide" sub="See the latest market signals." />
+                <QuickLink to="/weather" title="Weather guide" sub="7-day field forecast and risk for your farm." />
               </div>
 
               {!user?.verified && (
@@ -189,7 +194,6 @@ function DashboardContent() {
         </div>
 
         <div className="space-y-5">
-          <PriceSignal crop={primaryCropFor(user)} />
           <Panel>
             <h2 className="font-serif text-[19px] font-semibold tracking-[-.04em] text-ink">Need a hand?</h2>
             <p className="mb-3 mt-1 font-sans text-[13px] leading-relaxed text-muted">
