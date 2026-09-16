@@ -1,0 +1,51 @@
+Yes. Based on the SRS we developed for **AgriSmart AI**, I’d estimate the cost in Ghanaian cedis (GHS) for an initial production-ready MVP/pilot.
+
+### Estimated development cost
+
+| Component                              | Estimated Cost (GHS) |
+| -------------------------------------- | -------------------: |
+| Requirements analysis & system design  |               18,000 |
+| UI/UX design — mobile, USSD & admin    |               25,000 |
+| Mobile application                     |               65,000 |
+| Backend/API development                |               70,000 |
+| Marketplace & produce management       |               30,000 |
+| Buyer pre-commitment module            |               20,000 |
+| Transport/logistics module             |               25,000 |
+| SMS & USSD integration                 |               30,000 |
+| AI price forecasting & recommendations |               55,000 |
+| Weather/market data integration        |               25,000 |
+| Admin dashboard                        |               25,000 |
+| Database & cloud infrastructure setup  |               15,000 |
+| Security & authentication              |               15,000 |
+| Testing & quality assurance            |               30,000 |
+| Deployment & production setup          |               15,000 |
+| Pilot implementation & user training   |               20,000 |
+| Documentation                          |               10,000 |
+| **Subtotal**                           |          **493,000** |
+| Contingency (~10%)                     |           **49,300** |
+| **Estimated total**                    |      **542,300 GHS** |
+
+### Recommended budget: **GHS 500,000–550,000**
+
+I would use **GHS 542,300** as the proposed project budget for a serious MVP/pilot.
+
+This estimate reflects the requirements in the SRS, particularly the fact that AgriSmart AI is more than a simple marketplace: it needs **mobile access, USSD/SMS, buyer pre-commitments, logistics coordination, market-price data, weather data, and an AI forecasting component**. These requirements come directly from the project concept. 
+
+### Recurring costs after development
+
+You should also budget for ongoing operational costs:
+
+| Recurring Item                      | Estimated Annual Cost (GHS) |
+| ----------------------------------- | --------------------------: |
+| Cloud hosting/server                |               12,000–30,000 |
+| Database/storage/backups            |                5,000–12,000 |
+| SMS/USSD charges                    |               15,000–40,000 |
+| Weather/market data services        |                5,000–20,000 |
+| Domain/SSL/software services        |                 2,000–5,000 |
+| Maintenance & technical support     |               40,000–80,000 |
+| AI model monitoring/retraining      |               15,000–30,000 |
+| **Estimated annual operating cost** |          **94,000–217,000** |
+
+**Important:** these are planning estimates, not vendor quotations. The uploaded documents do not provide actual developer rates, cloud-provider prices, SMS/USSD tariffs, or AI/data-provider costs, so those figures should be validated before submitting a formal budget.
+
+If this is for a **university/project proposal or funding application**, I would recommend presenting the budget as **GHS 542,300 for development + approximately GHS 150,000 annual operational cost**, giving you a clean **GHS 692,300 first-year budget**.

@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>AgriSmart AI — Admin Dashboard</title>
+<style>
+  :root { --navy:#1F3A5F; --green:#2E7D32; --bg:#F7F8FA; --border:#E2E5EA; }
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, Segoe UI, Roboto, sans-serif; margin: 0; background: var(--bg); color: #222; }
+  header { background: var(--navy); color: white; padding: 18px 28px; }
+  header h1 { margin: 0; font-size: 20px; }
+  header p { margin: 4px 0 0; font-size: 13px; opacity: 0.85; }
+  main { padding: 24px 28px; max-width: 1200px; margin: 0 auto; }
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 14px; margin-bottom: 28px; }
+  .card { background: white; border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; }
+  .card .num { font-size: 26px; font-weight: 700; color: var(--navy); }
+  .card .label { font-size: 12px; color: #666; text-transform: uppercase; letter-spacing: 0.03em; }
+  section { background: white; border: 1px solid var(--border); border-radius: 10px; margin-bottom: 22px; overflow: hidden; }
+  section h2 { margin: 0; padding: 14px 18px; font-size: 15px; background: #FAFBFC; border-bottom: 1px solid var(--border); color: var(--navy); }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { text-align: left; padding: 9px 14px; border-bottom: 1px solid var(--border); }
+  th { color: #666; font-weight: 600; font-size: 11px; text-transform: uppercase; }
+  tr:last-child td { border-bottom: none; }
+  .status { padding: 2px 8px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+  .status.open, .status.pending, .status.accepted, .status.paid { background: #E8F3E8; color: var(--green); }
+  .status.sold, .status.pre_committed { background: #FFF3E0; color: #E65100; }
+  .status.rejected, .status.disputed, .status.overdue { background: #FDECEA; color: #C62828; }
+  .empty { padding: 16px; color: #888; font-size: 13px; }
+  .refresh { font-size: 12px; color: #888; margin-bottom: 16px; }
+  button { background: var(--navy); color: white; border: none; padding: 6px 12px; border-radius: 6px; font-size: 12px; cursor: pointer; }
+</style>
+</head>
+<body>
+<header>
+  <h1>AgriSmart AI — Admin Dashboard</h1>
+  <p>Phase 2 MVP · live view of listings, pre-commitments, transactions, transport, and notifications</p>
+</header>
+<main>
+  <div class="refresh">
+    <button onclick="loadAll()">Refresh</button>
+    <span id="lastUpdated"></span>
+  </div>
+
+  <div class="cards" id="summaryCards"></div>
+
+  <section>
+    <h2>Listings</h2>
+    <div id="listingsTable"></div>
+  </section>
+
+  <section>
+    <h2>Pre-Commitments</h2>
+    <div id="precommitmentsTable"></div>
+  </section>
+
+  <section>
+    <h2>Transactions / Payments</h2>
+    <div id="transactionsTable"></div>
+  </section>
+
+  <section>
+    <h2>Transport Requests</h2>
+    <div id="transportTable"></div>
+  </section>
+
+  <section>
+    <h2>Users</h2>
+    <div id="usersTable"></div>
+  </section>
+
+  <section>
+    <h2>Notification Log (SMS/USSD — simulated gateway)</h2>
+    <div id="notificationsTable"></div>
+  </section>
+</main>
+
+<script>
+async function getJSON(url) {
+  const r = await fetch(url);
+  return r.json();
+}
+
+function statusBadge(s) {
+  return `<span class="status ${s}">${s.replace(/_/g, ' ')}</span>`;
+}
+
+function renderTable(el, rows, columns) {
+  if (!rows || rows.length === 0) {
+    el.innerHTML = '<div class="empty">No records yet.</div>';
+    return;
+  }
+  const head = columns.map(c => `<th>${c.label}</th>`).join('');
+  const body = rows.map(r => '<tr>' + columns.map(c => `<td>${c.render(r)}</td>`).join('') + '</tr>').join('');
+  el.innerHTML = `<table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>`;
+}
+
+let usersById = {};
+
+async function loadAll() {
+  const [summary, users, listings, transport, notifications] = await Promise.all([
+    getJSON('/api/summary'),
+    getJSON('/api/users'),
+    getJSON('/api/listings'),
+    getJSON('/api/transport-requests'),
+    getJSON('/api/notifications'),
+  ]);
+
+  usersById = Object.fromEntries(users.map(u => [u.id, u]));
+
+  // summary cards
+  const cardsEl = document.getElementById('summaryCards');
+  const cardDefs = [
+    ['Users', summary.users], ['Listings', summary.listings], ['Open Listings', summary.openListings],
+    ['Pre-Commitments', summary.preCommitments], ['Transactions', summary.transactions],
+    ['Overdue Payments', summary.overduePayments], ['Transport Requests', summary.transportRequests],
+    ['Notifications Sent', summary.notificationsSent],
+  ];
+  cardsEl.innerHTML = cardDefs.map(([label, num]) => `<div class="card"><div class="num">${num}</div><div class="label">${label}</div></div>`).join('');
+
+  // listings
+  renderTable(document.getElementById('listingsTable'), listings, [
+    { label: 'Crop', render: r => r.cropType },
+    { label: 'Qty', render: r => `${r.quantity} ${r.unit}` },
+    { label: 'Farmer', render: r => usersById[r.farmerId]?.name || r.farmerId },
+    { label: 'Location', render: r => r.location || '—' },
+    { label: 'Asking (GHS)', render: r => r.askingPrice },
+    { label: 'Harvest Date', render: r => r.harvestDate },
+    { label: 'Status', render: r => statusBadge(r.status) },
+  ]);
+
+  // pre-commitments: fetch per listing
+  let allPcs = [];
+  for (const l of listings) {
+    const pcs = await getJSON(`/api/precommitments/listing/${l.id}`);
+    allPcs = allPcs.concat(pcs.map(p => ({ ...p, cropType: l.cropType })));
+  }
+  renderTable(document.getElementById('precommitmentsTable'), allPcs, [
+    { label: 'Crop', render: r => r.cropType },
+    { label: 'Buyer', render: r => usersById[r.buyerId]?.name || r.buyerId },
+    { label: 'Qty', render: r => r.quantity },
+    { label: 'Offered (GHS)', render: r => r.offeredPrice },
+    { label: 'Counter (GHS)', render: r => r.counterPrice ?? '—' },
+    { label: 'Status', render: r => statusBadge(r.status) },
+  ]);
+
+  // transactions: fetch per user then dedupe
+  let allTx = [];
+  const seenTx = new Set();
+  for (const u of users) {
+    const txs = await getJSON(`/api/transactions/user/${u.id}`);
+    for (const t of txs) {
+      if (!seenTx.has(t.id)) { seenTx.add(t.id); allTx.push(t); }
+    }
+  }
+  renderTable(document.getElementById('transactionsTable'), allTx, [
+    { label: 'Farmer', render: r => usersById[r.farmerId]?.name || r.farmerId },
+    { label: 'Buyer', render: r => usersById[r.buyerId]?.name || r.buyerId },
+    { label: 'Agreed (GHS)', render: r => r.agreedPrice },
+    { label: 'Due Date', render: r => r.dueDate },
+    { label: 'Status', render: r => statusBadge(r.paymentStatus) },
+  ]);
+
+  // transport
+  renderTable(document.getElementById('transportTable'), transport, [
+    { label: 'Pickup Location', render: r => r.pickupLocation },
+    { label: 'Requested Date', render: r => r.requestedDate },
+    { label: 'Farmers', render: r => r.farmerIds.map(id => usersById[id]?.name || id).join(', ') },
+    { label: 'Transporter', render: r => r.transporterId ? (usersById[r.transporterId]?.name || r.transporterId) : '—' },
+    { label: 'Est. Cost (GHS)', render: r => r.estimatedCost ?? '—' },
+    { label: 'Status', render: r => statusBadge(r.status) },
+  ]);
+
+  // users
+  renderTable(document.getElementById('usersTable'), users, [
+    { label: 'Name', render: r => r.name },
+    { label: 'Phone', render: r => r.phone },
+    { label: 'Role', render: r => r.role.replace('_', ' ') },
+    { label: 'Location', render: r => r.location || '—' },
+    { label: 'Community', render: r => r.community || '—' },
+    { label: 'Crops', render: r => (r.primaryCrops && r.primaryCrops.length ? r.primaryCrops.join(', ') : (r.purchaseCrops && r.purchaseCrops.length ? 'buys: ' + r.purchaseCrops.join(', ') : (r.cropTypes && r.cropTypes.length ? r.cropTypes.join(', ') : '—'))) },
+    { label: 'Buyer Type', render: r => r.buyerType ? r.buyerType.replace('_', ' ') : '—' },
+    { label: 'Mobile Money', render: r => r.mobileMoneyProvider ? r.mobileMoneyProvider.replace('_', ' ').replace('airteltigo', 'AirtelTigo') : '—' },
+    { label: 'Lang', render: r => r.language || 'en' },
+    { label: 'Farm (acres)', render: r => r.farmSize ?? '—' },
+    { label: 'Rating', render: r => r.rating ?? '—' },
+  ]);
+
+  // notifications
+  renderTable(document.getElementById('notificationsTable'), notifications, [
+    { label: 'To', render: r => r.toPhone },
+    { label: 'Channel', render: r => r.channel.toUpperCase() },
+    { label: 'Message', render: r => r.message },
+    { label: 'Sent At', render: r => new Date(r.sentAt).toLocaleString() },
+  ]);
+
+  document.getElementById('lastUpdated').textContent = 'Updated ' + new Date().toLocaleTimeString();
+}
+
+loadAll();
+</script>
+</body>
+</html>

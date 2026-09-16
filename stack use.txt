@@ -1,0 +1,28 @@
+Given the truncated message, here's the full technology picture — what's actually running in the Phase 2 MVP, plus what Phase 1 identified for the real integrations it stubs out:
+
+**Built and running in the MVP:**
+| Layer | Technology |
+|---|---|
+| Backend runtime | Node.js + Express |
+| API style | REST (JSON) |
+| Data store (MVP) | In-memory JS store — swaps for Postgres in Phase 4 |
+| USSD interface | Custom session-state menu engine, built to the Africa's Talking/Hubtel-style `CON`/`END` webhook contract |
+| SMS | Stubbed — logs to a notification feed instead of a real gateway |
+| Admin dashboard | Static HTML/CSS/vanilla JS hitting the REST API |
+| Package management | npm |
+
+**Identified in Phase 1 for the real integrations (not yet wired in):**
+| Need | Options identified |
+|---|---|
+| USSD/SMS gateway | Hubtel or mNotify (Ghana-based), Africa's Talking (pan-African fallback) |
+| Mobile money | MTN MoMo API (Collections + Disbursements) |
+| Weather data | Ghana Meteorological Agency, or a commercial weather API fallback |
+| Price data | Esoko (Ghana agri price service), MoFA/SRID as public-sector supplement |
+| Hosting | Any major cloud provider with a West Africa-adjacent region (not yet selected) |
+
+**Not yet chosen:**
+- Production database (Postgres is the natural fit given the relational data model, but not locked in)
+- Mobile app framework for the low-bandwidth Android app (Phase 2 built the USSD + web admin layer; the actual smartphone app hasn't been started)
+- AI/forecasting stack for Phase 3 (model choice, ML framework)
+
+If you meant something different by "what are the ___ that will be used" — e.g. requirements, metrics, or something from a specific section — let me know which one and I'll pull the exact list.
