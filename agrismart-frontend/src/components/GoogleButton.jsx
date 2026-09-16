@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { googleLogin } from '../lib/api'
 import { setSession } from '../lib/auth'
+<<<<<<< HEAD
 import TermsAcceptModal from './TermsAcceptModal'
+=======
+>>>>>>> origin/development
 
 const CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID
 const GIS_SRC = 'https://accounts.google.com/gsi/client'
@@ -22,11 +25,14 @@ const ensureInitialized = (callback) => {
 // NKABOM AGRILINK session via POST /api/auth/google. role/buyerType are used only when
 // auto-registering a brand-new Google account.
 //
+<<<<<<< HEAD
 // When the backend confirms this is a brand-new Google profile, it asks for the
 // Terms of Service / Privacy Policy to be accepted before the account is created.
 // We surface a centered modal for that; accepting it retries the same ID token
 // with acceptedTerms: true so returning users are never asked again.
 //
+=======
+>>>>>>> origin/development
 // The button is shown as soon as the Google Identity Services script is available.
 // If the script is slow/blocked we surface a clear message instead of a silent
 // empty container, and we attempt to load it dynamically as a fallback.
@@ -38,8 +44,11 @@ export default function GoogleButton({ role, buyerType, onSuccess, onError, text
   propsRef.current = { role, buyerType, onSuccess, onError }
 
   const [status, setStatus] = useState(() => (CLIENT_ID ? 'loading' : 'unconfigured'))
+<<<<<<< HEAD
   // ID token waiting for the user to accept the Terms before we create their account.
   const [termsPendingIdToken, setTermsPendingIdToken] = useState(null)
+=======
+>>>>>>> origin/development
 
   const callback = useCallback(async (response) => {
     if (!response || !response.credential) return
@@ -49,6 +58,7 @@ export default function GoogleButton({ role, buyerType, onSuccess, onError, text
       setSession(result.user, result.token)
       p.onSuccess?.(result)
     } catch (err) {
+<<<<<<< HEAD
       // Brand-new Google account: backend requires Terms acceptance before it
       // creates the profile. Hold the token, show the centered modal, and retry
       // with acceptedTerms: true once the user accepts.
@@ -57,10 +67,13 @@ export default function GoogleButton({ role, buyerType, onSuccess, onError, text
         setTermsPendingIdToken(response.credential)
         return
       }
+=======
+>>>>>>> origin/development
       p.onError?.(err)
     }
   }, [])
 
+<<<<<<< HEAD
   const finishTerms = async () => {
     const p = propsRef.current
     const token = termsPendingIdToken
@@ -83,20 +96,30 @@ export default function GoogleButton({ role, buyerType, onSuccess, onError, text
     // keep disabled as a live prop for the render branch
     propsRef.current = { ...propsRef.current }
 
+=======
+  useEffect(() => {
+>>>>>>> origin/development
     if (!CLIENT_ID) return
     let cancelled = false
     let injected = false
     let timeoutId = null
 
+<<<<<<< HEAD
     const callbackRef = { current: callback }
 
+=======
+>>>>>>> origin/development
     const render = () => {
       if (cancelled || status !== 'loading') return
       if (!window.google?.accounts?.id) return
       try {
         // initialize() must only run once for the client (module-scoped guard);
         // renderButton may be called once per mounted container.
+<<<<<<< HEAD
         ensureInitialized(callbackRef.current)
+=======
+        ensureInitialized(callback)
+>>>>>>> origin/development
         if (btnRef.current) {
           // Google rejects percentage widths; use a real pixel width from the container.
           const px = btnRef.current.offsetWidth || 350
@@ -148,6 +171,10 @@ export default function GoogleButton({ role, buyerType, onSuccess, onError, text
       cancelled = true
       if (timeoutId) clearTimeout(timeoutId)
     }
+<<<<<<< HEAD
+=======
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+>>>>>>> origin/development
   }, [callback, text])
 
   if (status === 'unconfigured') {
@@ -169,16 +196,23 @@ export default function GoogleButton({ role, buyerType, onSuccess, onError, text
   return (
     <>
       {status === 'loading' && (
+<<<<<<< HEAD
         <p className="text-sm text-muted text-center">Preparing Google sign-in.</p>
+=======
+        <p className="text-sm text-muted text-center">Preparing Google sign-in…</p>
+>>>>>>> origin/development
       )}
       <div className={disabled ? 'pointer-events-none opacity-50' : status === 'ready' ? '' : 'hidden'}>
         <div ref={btnRef} />
       </div>
+<<<<<<< HEAD
       <TermsAcceptModal
         open={!!termsPendingIdToken}
         onClose={() => setTermsPendingIdToken(null)}
         onAccept={finishTerms}
       />
+=======
+>>>>>>> origin/development
     </>
   )
 }

@@ -5,8 +5,11 @@ import { Panel } from '../components/Panel'
 import Chip from '../components/Chip'
 import Reveal from '../components/Reveal'
 import { getMyFarms, getWeatherGuide } from '../lib/api'
+<<<<<<< HEAD
 import { weatherIconMeta } from '../lib/weatherIcons'
 import { WindIcon } from '../components/icons'
+=======
+>>>>>>> origin/development
 
 const RISK_META = {
   high: { label: 'High risk', box: 'border-bad/40 bg-bad text-bad-text' },
@@ -63,8 +66,11 @@ function WeatherContent() {
   }, [farmId])
 
   const risk = data && RISK_META[data.risk.level]
+<<<<<<< HEAD
   const todayMeta = data && data.daily && data.daily[0] ? weatherIconMeta(data.daily[0].condition) : null
   const TodayIcon = todayMeta && todayMeta.icon
+=======
+>>>>>>> origin/development
 
   return (
     <div className="space-y-5">
@@ -120,6 +126,7 @@ function WeatherContent() {
               <span className="font-sans text-[11px] font-bold uppercase tracking-[.15em]">
                 {data.farm && data.farm.name ? data.farm.name : 'Outlook'} · {data.risk.level === 'high' ? 'take cover' : data.risk.level === 'medium' ? 'plan around the rain' : 'clear sailing'}
               </span>
+<<<<<<< HEAD
               <div className="mt-2 flex items-center gap-3">
                 {TodayIcon && <TodayIcon className={`h-8 w-8 shrink-0 ${todayMeta.color}`} />}
                 <div>
@@ -133,6 +140,11 @@ function WeatherContent() {
                   )}
                 </div>
               </div>
+=======
+              <h2 className="mt-2 font-serif text-2xl font-semibold leading-tight tracking-[-.04em]">
+                {risk.label} over the next two days
+              </h2>
+>>>>>>> origin/development
               {data.risk.reasons && data.risk.reasons.length > 0 && (
                 <ul className="mt-3 space-y-1.5">
                   {data.risk.reasons.map((r) => (
@@ -143,6 +155,7 @@ function WeatherContent() {
                   ))}
                 </ul>
               )}
+<<<<<<< HEAD
               {data.bestWindow ? (
                 <p className="mt-3 font-sans text-[13px] leading-relaxed">
                   Driest window: <strong>{data.bestWindow.date}</strong> ({data.bestWindow.label}) · {data.bestWindow.chanceOfRain}% chance of rain.
@@ -151,6 +164,12 @@ function WeatherContent() {
                 <p className="mt-3 font-sans text-[13px] leading-relaxed text-muted">
                   No dry window in the next 3 days — every day has a real chance of rain.
                 </p>
+=======
+              {data.bestWindow && (
+                <p className="mt-3 font-sans text-[13px] leading-relaxed">
+                  Driest window: <strong>{data.bestWindow.date}</strong> ({data.bestWindow.label}) · {data.bestWindow.chanceOfRain}% chance of rain.
+                </p>
+>>>>>>> origin/development
               )}
             </div>
 
@@ -196,9 +215,12 @@ function WeatherContent() {
               {data.daily.map((d, i) => {
                 const meta = riskMetaFor(d)
                 const isBest = data.bestWindow && data.bestWindow.date === d.date
+<<<<<<< HEAD
                 const wx = weatherIconMeta(d.condition)
                 const WxIcon = wx.icon
                 const gusty = d.windMax >= 35
+=======
+>>>>>>> origin/development
                 return (
                   <Reveal key={d.date} delay={0.05 + i * 0.05}>
                     <div className={`flex h-full flex-col rounded-[15px] border p-3.5 ${isBest ? 'border-leaf/50 bg-lime-soft/60' : 'border-line bg-surface'}`}>
@@ -212,6 +234,7 @@ function WeatherContent() {
                           </span>
                         )}
                       </div>
+<<<<<<< HEAD
                       <div className="mt-1.5 flex items-center gap-1.5">
                         <WxIcon className={`h-6 w-6 shrink-0 ${wx.color}`} />
                         <span className={`font-sans text-[11px] capitalize ${gusty ? 'text-muted' : ''}`}>{d.condition}</span>
@@ -225,6 +248,9 @@ function WeatherContent() {
                           </span>
                         )}
                       </div>
+=======
+                      <p className="mt-1 font-sans text-[11px] capitalize text-muted">{d.condition}</p>
+>>>>>>> origin/development
                       <p className="mt-2 font-serif text-[19px] font-semibold tracking-[-.04em] text-ink">
                         {d.tMin}° – {d.tMax}°
                       </p>

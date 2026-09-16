@@ -71,7 +71,11 @@ function aggregateDaily(hourly) {
         rainSum: round1(d.rainSum),
         humidityAvg: Math.round(d.humiditySum / Math.max(1, d.hours)),
         windMax: Math.round(d.windMax),
+<<<<<<< HEAD
         condition: rainCondition(code, d.rainSum, d.rainProbMax) || WMO[code] || "Variable",
+=======
+        condition: WMO[code] || "Variable",
+>>>>>>> origin/development
       };
     });
 }
@@ -88,6 +92,7 @@ function dominantCode(counts) {
   return best;
 }
 
+<<<<<<< HEAD
 // WMO codes that already describe rain/thunder in WMO table — keep them as-is.
 const RAINY_CODES = new Set([51, 53, 55, 56, 57, 61, 63, 65, 66, 67, 80, 81, 82, 95, 96, 99]);
 
@@ -105,6 +110,8 @@ function rainCondition(code, rainSum, rainProbMax) {
   return null;
 }
 
+=======
+>>>>>>> origin/development
 const round1 = (n) => Math.round(Number(n) * 10) / 10;
 
 // Risk rules over the daily aggregates (guide §7). `harvestDate` (YYYY-MM-DD or
@@ -135,11 +142,14 @@ function classifyRisk(daily, harvestDate = null) {
 }
 
 // The driest of the next three days to schedule field work / transport (guide §8).
+<<<<<<< HEAD
 // Only a genuinely dry day (<50% chance of rain AND <1mm) counts — otherwise the
 // whole window is wet and we return null so callers never point at a "driest"
 // day that is actually rainy.
 const DRY_PROB = 50;
 const DRY_RAIN = 1;
+=======
+>>>>>>> origin/development
 function bestWindow(daily) {
   const top = daily.slice(0, 3);
   if (!top.length) return null;
@@ -150,13 +160,20 @@ function bestWindow(daily) {
   }));
   scored.sort((a, b) => a.score - b.score);
   const best = scored[0];
+<<<<<<< HEAD
   const dayFor = daily.find((d) => d.date === best.day);
   if (dayFor.rainProbMax >= DRY_PROB || dayFor.rainSum >= DRY_RAIN) return null;
+=======
+>>>>>>> origin/development
   const label = best.index === 0 ? "today" : `in ${best.index} day${best.index === 1 ? "" : "s"}`;
   return {
     date: best.day,
     label,
+<<<<<<< HEAD
     chanceOfRain: dayFor.rainProbMax,
+=======
+    chanceOfRain: daily.find((d) => d.date === best.day).rainProbMax,
+>>>>>>> origin/development
   };
 }
 

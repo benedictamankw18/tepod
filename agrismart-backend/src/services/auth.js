@@ -223,9 +223,12 @@ async function googleLogin({ idToken, name, role, buyerType, acceptedTerms }) {
   let user = email ? await usersRepo.findUserByEmail(email) : null;
   let created = false;
   if (!user) {
+<<<<<<< HEAD
     if (acceptedTerms !== true) {
       return { error: "accepted_terms_required" };
     }
+=======
+>>>>>>> origin/development
     if (!usersRepo.SIGNUP_ROLES.includes(role)) {
       return { error: "role is required and must be farmer or buyer" };
     }

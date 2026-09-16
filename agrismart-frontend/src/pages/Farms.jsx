@@ -13,7 +13,10 @@ import SearchableSelect from '../components/SearchableSelect'
 import { getMyFarms, deleteFarm } from '../lib/api'
 import { useCrops } from '../lib/crops'
 import { productArt, productGradient } from '../lib/productArt'
+<<<<<<< HEAD
 import VerifyProfileModal from '../components/VerifyProfileModal'
+=======
+>>>>>>> origin/development
 
 const STAGE_LABELS = { pre_harvest: 'Pre-harvest', post_harvest: 'Post-harvest' }
 const STAGE_OPTIONS = [
@@ -96,7 +99,10 @@ function FarmsContent() {
   const [showForm, setShowForm] = useState(false)
   const [editing, setEditing] = useState(null)
   const [detailFarm, setDetailFarm] = useState(null)
+<<<<<<< HEAD
   const [verifyOpen, setVerifyOpen] = useState(false)
+=======
+>>>>>>> origin/development
 
   const loadFarms = () =>
     getMyFarms()
@@ -133,7 +139,11 @@ function FarmsContent() {
 
   const openCreate = () => {
     if (!user?.verified) {
+<<<<<<< HEAD
       setVerifyOpen(true)
+=======
+      flashToast('Verify your farmer profile before adding a farm.')
+>>>>>>> origin/development
       return
     }
     setEditing(null)
@@ -314,7 +324,10 @@ function FarmsContent() {
           />
         )}
       </Modal>
+<<<<<<< HEAD
       <VerifyProfileModal open={verifyOpen} onClose={() => setVerifyOpen(false)} />
+=======
+>>>>>>> origin/development
     </div>
   )
 }

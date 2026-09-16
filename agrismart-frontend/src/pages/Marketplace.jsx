@@ -7,7 +7,10 @@ import Chip from '../components/Chip'
 import Empty from '../components/Empty'
 import Modal from '../components/Modal'
 import Reveal from '../components/Reveal'
+<<<<<<< HEAD
 import VerifyProfileModal from '../components/VerifyProfileModal'
+=======
+>>>>>>> origin/development
 import ListingForm from '../components/ListingForm'
 import SearchableSelect from '../components/SearchableSelect'
 import { getBanners, getListings, getProduce, getMyPurchases } from '../lib/api'
@@ -23,7 +26,10 @@ function FarmerMarketplace() {
   const [error, setError] = useState('')
   const [query, setQuery] = useState('')
   const [cropFilter, setCropFilter] = useState('')
+<<<<<<< HEAD
   const [verifyOpen, setVerifyOpen] = useState(false)
+=======
+>>>>>>> origin/development
   const [showForm, setShowForm] = useState(false)
   const [searchParams, setSearchParams] = useSearchParams()
 
@@ -54,7 +60,11 @@ function FarmerMarketplace() {
 
   const openCreate = () => {
     if (!user?.verified) {
+<<<<<<< HEAD
       setVerifyOpen(true)
+=======
+      flashToast('Verify your farmer profile before listing produce.')
+>>>>>>> origin/development
       return
     }
     setShowForm(true)
@@ -154,8 +164,11 @@ function FarmerMarketplace() {
           }}
         />
       </Modal>
+<<<<<<< HEAD
 
       <VerifyProfileModal open={verifyOpen} onClose={() => setVerifyOpen(false)} />
+=======
+>>>>>>> origin/development
     </div>
   )
 }
@@ -229,7 +242,11 @@ function BuyerMarketplace() {
   })
 
   const cartQtyOf = (id) => cart.items.find((l) => l.listingId === id)?.qty || 0
+<<<<<<< HEAD
   const verifyPrompt = () => setVerifyOpen(true)
+=======
+  const verifyPrompt = () => flashToast('Verify your buyer profile to place an order')
+>>>>>>> origin/development
 
   return (
     <div className="space-y-5">

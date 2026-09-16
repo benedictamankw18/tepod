@@ -44,7 +44,11 @@ export default function About() {
         <Link
           to={signedIn ? '/' : '/login'}
           className="font-sans text-sm font-medium text-leaf hover:underline"
+<<<<<<< HEAD
          target="_blank" rel="noopener noreferrer">
+=======
+        >
+>>>>>>> origin/development
           ← Back
         </Link>
 
@@ -152,13 +156,21 @@ export default function About() {
               <Link
                 to="/login"
                 className="rounded-[10px] bg-leaf px-5 py-2.5 text-center font-sans text-sm font-bold text-white transition hover:bg-leaf-dark"
+<<<<<<< HEAD
                target="_blank" rel="noopener noreferrer">
+=======
+              >
+>>>>>>> origin/development
                 Sign in
               </Link>
               <Link
                 to="/register"
                 className="rounded-[10px] border border-leaf bg-white px-5 py-2.5 text-center font-sans text-sm font-bold text-leaf transition hover:bg-paper"
+<<<<<<< HEAD
                target="_blank" rel="noopener noreferrer">
+=======
+              >
+>>>>>>> origin/development
                 Create an account
               </Link>
             </div>
@@ -167,11 +179,19 @@ export default function About() {
 
         <p className="mt-6 text-center font-sans text-xs text-muted">
           © {new Date().getFullYear()} NKABOM AGRILINK ·{' '}
+<<<<<<< HEAD
           <Link to="/terms" className="text-leaf hover:underline" target="_blank" rel="noopener noreferrer">
             Terms
           </Link>{' '}
           ·{' '}
           <Link to="/privacy" className="text-leaf hover:underline" target="_blank" rel="noopener noreferrer">
+=======
+          <Link to="/terms" className="text-leaf hover:underline">
+            Terms
+          </Link>{' '}
+          ·{' '}
+          <Link to="/privacy" className="text-leaf hover:underline">
+>>>>>>> origin/development
             Privacy
           </Link>
         </p>
