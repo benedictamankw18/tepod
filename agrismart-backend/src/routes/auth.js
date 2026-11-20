@@ -207,12 +207,9 @@ router.post("/otp/verify", async (req, res) => {
 router.post("/register", async (req, res) => {
   const { name, phone, email, username, password, role, location, buyerType, mobileMoneyProvider, purchaseCrops, primaryCrops, cropTypes, language, community, farmSize } = req.body;
   if (!name || !password) return bad(res, "name and password are required");
-<<<<<<< HEAD
-=======
   if (req.body.acceptedTerms !== true) {
     return bad(res, "you must accept the Terms of Service and Privacy Policy to continue");
   }
->>>>>>> origin/development
   if (!phone && !email) return bad(res, "phone or email is required");
   if (!usersRepo.SIGNUP_ROLES.includes(role)) {
     return bad(res, "role is required and must be farmer or buyer");
@@ -417,14 +414,7 @@ router.post("/password/reset", async (req, res) => {
 // POST /api/auth/google - Google ID token sign-in
 router.post("/google", async (req, res) => {
   const { idToken, name, role, buyerType } = req.body;
-<<<<<<< HEAD
   const result = await auth.googleLogin({ idToken, name, role, buyerType, acceptedTerms: req.body.acceptedTerms === true });
-=======
-  if (req.body.acceptedTerms !== true) {
-    return bad(res, "you must accept the Terms of Service and Privacy Policy to continue");
-  }
-  const result = await auth.googleLogin({ idToken, name, role, buyerType, acceptedTerms: true });
->>>>>>> origin/development
   if (result.error) {
     if (result.error === "google_signin_not_configured") {
       return res.status(501).json({ error: result.error });
@@ -524,10 +514,7 @@ router.post("/verify", requireAuth, async (req, res) => {
     return res.status(403).json({ error: "admins do not verify their profile" });
   }
   if (!req.user.termsAcceptedAt && req.body.acceptedTerms !== true) {
-<<<<<<< HEAD
-=======
     return bad(res, "you must accept the Terms of Service and Privacy Policy to continue");
->>>>>>> origin/development
   }
   const { purchaseCrops, region, district, gpsAddress, address, community, lat, lng, idType, idNumber, photoUrl } = req.body;
 

@@ -9,19 +9,11 @@ export default function AgreementCheckbox({ checked, onChange }) {
       />
       <span>
         I agree to the{' '}
-<<<<<<< HEAD
         <a href="/terms" target="_blank" rel="noopener noreferrer" className="font-medium text-leaf hover:underline">
           Terms of Service
         </a>{' '}
         and{' '}
         <a href="/privacy" target="_blank" rel="noopener noreferrer" className="font-medium text-leaf hover:underline">
-=======
-        <a href="/terms" target="_blank" rel="noreferrer" className="font-medium text-leaf hover:underline">
-          Terms of Service
-        </a>{' '}
-        and{' '}
-        <a href="/privacy" target="_blank" rel="noreferrer" className="font-medium text-leaf hover:underline">
->>>>>>> origin/development
           Privacy Policy
         </a>
         .

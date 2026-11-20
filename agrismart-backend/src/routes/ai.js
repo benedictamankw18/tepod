@@ -1,16 +1,10 @@
 // ai.js
 // The "AgriSmart AI guide" endpoints. Both compute everything from real, verified
 // sources (Open-Meteo for weather, the prices table for market data) and optionally
-<<<<<<< HEAD
 // hand the result to an LLM (OpenRouter first, NVIDIA NIM as fallback) solely to
 // phrase the advice in farmer-friendly language. When no model is reachable the
 // rule-based advice copy is served instead, so these endpoints never depend on a
 // model being up.
-=======
-// hand the result to OpenRouter solely to phrase the advice in farmer-friendly
-// language. When the LLM is unavailable the rule-based advice copy is served instead,
-// so these endpoints never depend on the model being up.
->>>>>>> origin/development
 
 const express = require("express");
 const { requireAuth } = require("../middleware/auth");
@@ -19,11 +13,7 @@ const { geocode } = require("../services/geocode");
 const weatherService = require("../services/weather");
 const priceGuideService = require("../services/priceGuide");
 const cropDemandService = require("../services/cropDemand");
-<<<<<<< HEAD
 const llm = require("../services/llm");
-=======
-const openrouter = require("../services/openrouter");
->>>>>>> origin/development
 
 const router = express.Router();
 
@@ -140,13 +130,8 @@ router.get("/weather-guide", requireAuth, async (req, res, next) => {
       bestWindow: forecast.bestWindow,
       daily: forecast.daily.slice(0, 4),
     };
-<<<<<<< HEAD
     const llmAdvice = await llm.explain(WEATHER_SYSTEM, JSON.stringify(context));
     const advice = llmAdvice || weatherRuleAdvice(context);
-=======
-    const llm = await openrouter.explain(WEATHER_SYSTEM, JSON.stringify(context));
-    const advice = llm || weatherRuleAdvice(context);
->>>>>>> origin/development
 
     res.json({
       farm: farm
@@ -191,11 +176,7 @@ router.get("/price-guide", async (req, res, next) => {
 
     const guide = await priceGuideService.priceGuide({ cropType, market });
     if (guide.available) {
-<<<<<<< HEAD
       const llmAdvice = await llm.explain(
-=======
-      const llm = await openrouter.explain(
->>>>>>> origin/development
         PRICE_SYSTEM,
         JSON.stringify({
           crop: guide.cropType,
@@ -208,11 +189,7 @@ router.get("/price-guide", async (req, res, next) => {
           comparison: (guide.comparison || []).slice(0, 3),
         })
       );
-<<<<<<< HEAD
       if (llmAdvice) guide.advice = llmAdvice;
-=======
-      if (llm) guide.advice = llm;
->>>>>>> origin/development
     }
     res.json(guide);
   } catch (err) {
@@ -263,11 +240,7 @@ router.get("/crop-guide", async (req, res, next) => {
 
     const guide = await cropDemandService.demandGuide({ region, plantMonth });
     if (guide.available) {
-<<<<<<< HEAD
       const llmAdvice = await llm.explain(
-=======
-      const llm = await openrouter.explain(
->>>>>>> origin/development
         CROP_DEMAND_SYSTEM,
         JSON.stringify({
           region: guide.regionLabel,
@@ -285,11 +258,7 @@ router.get("/crop-guide", async (req, res, next) => {
           })),
         })
       );
-<<<<<<< HEAD
       if (llmAdvice) guide.advice = llmAdvice;
-=======
-      if (llm) guide.advice = llm;
->>>>>>> origin/development
     }
     res.json(guide);
   } catch (err) {

@@ -39,11 +39,7 @@ async function explain(system, user, { fetchImpl = fetch } = {}) {
       body: JSON.stringify({
         model: MODEL,
         temperature: 0.3,
-<<<<<<< HEAD
         max_tokens: 2000,
-=======
-        max_tokens: 600,
->>>>>>> origin/development
         response_format: { type: "json_object" },
         messages: [
           { role: "system", content: system },

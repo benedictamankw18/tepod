@@ -62,7 +62,6 @@ export function WeatherRiskCard() {
           {data.risk.reasons && data.risk.reasons.length > 0 && (
             <p className="mt-2 font-sans text-xs leading-relaxed text-muted">{data.risk.reasons[0]}</p>
           )}
-<<<<<<< HEAD
           {data.bestWindow ? (
             <p className="mt-2 font-sans text-[11px] text-fern">
               Driest window {data.bestWindow.date} · {data.bestWindow.chanceOfRain}% rain
@@ -71,12 +70,6 @@ export function WeatherRiskCard() {
             <p className="mt-2 font-sans text-[11px] text-fern">
               No dry window in the next 3 days — every day has a chance of rain.
             </p>
-=======
-          {data.bestWindow && (
-            <p className="mt-2 font-sans text-[11px] text-fern">
-              Driest window {data.bestWindow.date} · {data.bestWindow.chanceOfRain}% rain
-            </p>
->>>>>>> origin/development
           )}
         </>
       )}

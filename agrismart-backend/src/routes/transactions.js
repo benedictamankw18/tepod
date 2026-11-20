@@ -119,12 +119,19 @@ function makeChargeReference(txId, kind) {
  */
 // POST /api/transactions - record a payment obligation from an accepted pre-commitment (FR-5.1)
 router.post("/", requireAuth, async (req, res) => {
-  const { listingId, buyerId, agreedPrice, dueDate } = req.body;
+  const { listingId, buyerId, agreedPrice, dueDate, quantity } = req.body;
   if (!listingId || !buyerId) return res.status(400).json({ error: "listingId and buyerId are required" });
   const price = Number(agreedPrice);
   if (!price || price < 0) return res.status(400).json({ error: "agreedPrice must be a valid amount" });
   const listing = await listingsRepo.getListing(listingId);
   if (!listing) return res.status(404).json({ error: "listing not found" });
+  const soldQty = quantity == null ? listing.quantity : Number(quantity);
+  if (!Number.isFinite(soldQty) || soldQty <= 0) {
+    return res.status(400).json({ error: "quantity must be a positive number" });
+  }
+  if (soldQty > listing.quantity) {
+    return res.status(400).json({ error: `quantity cannot exceed the listed amount of ${listing.quantity} ${listing.unit}` });
+  }
   if (req.user.id !== listing.farmerId && req.user.role !== "admin") {
     return res.status(403).json({ error: "only the listing farmer can confirm a sale" });
   }
@@ -136,7 +143,7 @@ router.post("/", requireAuth, async (req, res) => {
   const { commission: commissionAmount, net: netAmount } = computeCommission(commission, price);
   const tx = await transactionsRepo.createTransaction({
     listingId, buyerId, farmerId: listing.farmerId, agreedPrice: price,
-    commissionAmount, netAmount,
+    commissionAmount, netAmount, soldQuantity: soldQty,
     dueDate: dueDate || new Date(Date.now() + 14 * 864e5),
   });
   const buyer = await usersRepo.getUser(buyerId);

@@ -76,7 +76,7 @@ CREATE TABLE IF NOT EXISTS listings (
   id            TEXT PRIMARY KEY,
   farmer_id     TEXT NOT NULL REFERENCES users(id),
   crop_type     TEXT NOT NULL,
-  quantity      NUMERIC(12,2) NOT NULL CHECK (quantity > 0),
+  quantity      NUMERIC(12,2) NOT NULL CHECK (quantity >= 0),
   unit          TEXT NOT NULL DEFAULT 'bags',
   harvest_date  DATE,
   asking_price  NUMERIC(12,2) NOT NULL CHECK (asking_price >= 0),

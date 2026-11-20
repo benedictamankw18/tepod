@@ -1908,17 +1908,33 @@ describe("pre-commitment negotiation (offers, counters, minimum price)", () => {
       .post("/api/precommitments").set("Authorization", `Bearer ${buyer.body.token}`)
       .send({ listingId: listing.id, quantity: 25, offeredPrice: 100 });
     expect(over.status).toBe(400);
-    expect(over.body.error).toContain("cannot exceed the listed amount");
+    expect(over.body.error).toContain("cannot exceed the remaining listed amount");
 
     const at = await request(app)
       .post("/api/precommitments").set("Authorization", `Bearer ${buyer.body.token}`)
       .send({ listingId: listing.id, quantity: 20, offeredPrice: 100 });
     expect(at.status).toBe(201);
   });
+
+  test("active commitments are summed so a listing cannot be oversold", async () => {
+    const { farmer, buyer } = await makePair(5);
+    const listing = await makeListing(farmer.body.token, 100, null); // quantity 20
+
+    const first = await request(app)
+      .post("/api/precommitments").set("Authorization", `Bearer ${buyer.body.token}`)
+      .send({ listingId: listing.id, quantity: 12, offeredPrice: 100 });
+    expect(first.status).toBe(201);
+
+    const second = await request(app)
+      .post("/api/precommitments").set("Authorization", `Bearer ${buyer.body.token}`)
+      .send({ listingId: listing.id, quantity: 9, offeredPrice: 100 });
+    expect(second.status).toBe(400);
+    expect(second.body.error).toContain("remaining listed amount of 8");
+  });
 });
 
 describe("pre-commitment fulfillment (deposits, produce-ready, delivery, completion)", () => {
-  async function makePair() {
+  async function makePair(listingQty = 20, pcQty = 10) {
     const farmerPhone = `02488${Math.floor(Math.random() * 100000).toString().padStart(5, "0")}`;
     const buyerPhone = `02488${Math.floor(Math.random() * 100000).toString().padStart(5, "0")}`;
     const intruderPhone = `02488${Math.floor(Math.random() * 100000).toString().padStart(5, "0")}`;
@@ -1933,11 +1949,11 @@ describe("pre-commitment fulfillment (deposits, produce-ready, delivery, complet
       .send({ purchaseCrops: ["tomato"], region: "Greater Accra", district: "Okaikwei North", idType: "ghana_card", idNumber: "GHA-50505050-1", photoUrl: "/uploads/photo.jpg" });
     const listing = await request(app)
       .post("/api/listings").set("Authorization", `Bearer ${farmer.body.token}`)
-      .send({ cropType: "tomato", quantity: 20, unit: "crates", askingPrice: 150, location: "Kasoa" });
+      .send({ cropType: "tomato", quantity: listingQty, unit: "crates", askingPrice: 150, location: "Kasoa" });
     expect(listing.status).toBe(201);
     const pc = await request(app)
       .post("/api/precommitments").set("Authorization", `Bearer ${buyer.body.token}`)
-      .send({ listingId: listing.body.id, quantity: 10, offeredPrice: 150 });
+      .send({ listingId: listing.body.id, quantity: pcQty, offeredPrice: 150 });
     expect(pc.status).toBe(201);
     const accept = await request(app)
       .post(`/api/precommitments/${pc.body.id}/respond`).set("Authorization", `Bearer ${farmer.body.token}`)
@@ -2059,7 +2075,8 @@ describe("pre-commitment fulfillment (deposits, produce-ready, delivery, complet
     expect(donePc.completedAt).toBeTruthy();
 
     const soldListing = await request(app).get(`/api/listings/${listing.id}`);
-    expect(soldListing.body.status).toBe("sold");
+    expect(soldListing.body.quantity).toBe(10);
+    expect(soldListing.body.status).toBe("open");
 
     const buyerInbox = await request(app).get("/api/notifications/me").set("Authorization", `Bearer ${buyer.body.token}`);
     expect(buyerInbox.body.notifications.map((n) => n.title)).toContain("Sale completed");
@@ -2088,7 +2105,42 @@ describe("pre-commitment fulfillment (deposits, produce-ready, delivery, complet
     const after = await request(app).get("/api/precommitments/me").set("Authorization", `Bearer ${buyer.body.token}`);
     expect(after.body.find((p) => p.id === pc.id).status).toBe("completed");
     const l = await request(app).get(`/api/listings/${listing.id}`);
-    expect(l.body.status).toBe("sold");
+    expect(l.body.quantity).toBe(10);
+    expect(l.body.status).toBe("open");
+  });
+
+  test("selling part of a listing reduces available quantity without closing it", async () => {
+    const { buyer, farmer, listing, pc } = await makePair(100, 3);
+
+    await request(app)
+      .post(`/api/transactions/${pc.transactionId}/pay`).set("Authorization", `Bearer ${buyer.body.token}`);
+    await request(app)
+      .post(`/api/precommitments/${pc.id}/fulfill`).set("Authorization", `Bearer ${farmer.body.token}`)
+      .send({ step: "ready" });
+    await request(app)
+      .post(`/api/precommitments/${pc.id}/fulfill`).set("Authorization", `Bearer ${buyer.body.token}`)
+      .send({ step: "delivered" });
+
+    const updated = await request(app).get(`/api/listings/${listing.id}`);
+    expect(updated.body.quantity).toBe(97);
+    expect(updated.body.status).toBe("open");
+  });
+
+  test("selling all stock sets quantity to zero and marks the listing sold", async () => {
+    const { buyer, farmer, listing, pc } = await makePair(3, 3);
+
+    await request(app)
+      .post(`/api/transactions/${pc.transactionId}/pay`).set("Authorization", `Bearer ${buyer.body.token}`);
+    await request(app)
+      .post(`/api/precommitments/${pc.id}/fulfill`).set("Authorization", `Bearer ${farmer.body.token}`)
+      .send({ step: "ready" });
+    await request(app)
+      .post(`/api/precommitments/${pc.id}/fulfill`).set("Authorization", `Bearer ${buyer.body.token}`)
+      .send({ step: "delivered" });
+
+    const updated = await request(app).get(`/api/listings/${listing.id}`);
+    expect(updated.body.quantity).toBe(0);
+    expect(updated.body.status).toBe("sold");
   });
 
   test("legacy commitments without a transaction get one on delivery and a real-price receipt", async () => {

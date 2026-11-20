@@ -40,6 +40,20 @@ async function getPreCommitment(id) {
   return r.rowCount ? ROW_TO_PC(r.rows[0]) : null;
 }
 
+// Quantity still reserved against a listing by commitments that have not yet been
+// deducted from stock. 'completed' rows are excluded because recordSale() already
+// subtracted them from listings.quantity; 'rejected' rows no longer reserve anything.
+async function activeCommittedQuantity(listingId) {
+  const r = await query(
+    `SELECT COALESCE(SUM(COALESCE(actual_quantity, quantity)), 0) AS total
+     FROM pre_commitments
+     WHERE listing_id = $1
+       AND status IN ('pending', 'accepted', 'preparing', 'ready', 'delivered', 'countered')`,
+    [listingId]
+  );
+  return Number(r.rows[0].total);
+}
+
 async function respondToPreCommitment(id, { action, counterPrice }) {
   const pc = await getPreCommitment(id);
   if (!pc) return null;
@@ -122,8 +136,15 @@ async function fulfillStep(id, step, data = {}) {
 async function completePreCommitment(id) {
   const pc = await getPreCommitment(id);
   if (!pc) return null;
-  await query(`UPDATE pre_commitments SET status = 'completed', completed_at = now() WHERE id = $1`, [id]);
-  await listings.setListingStatus(pc.listingId, "sold");
+  if (pc.status === "completed") return pc;
+  const r = await query(
+    `UPDATE pre_commitments SET status = 'completed', completed_at = now()
+     WHERE id = $1 AND status = 'delivered' RETURNING *`, [id]
+  );
+  if (!r.rowCount) return null;
+  // Deduct the bags actually handed over (the "ready" step may adjust the request).
+  const soldQty = pc.actualQuantity != null ? pc.actualQuantity : pc.quantity;
+  await listings.recordSale(pc.listingId, soldQty);
   return getPreCommitment(id);
 }
 
@@ -246,7 +267,8 @@ async function listAllPreCommitments({ status } = {}) {
 module.exports = {
   PC_STATUSES,
   FULFILL_STEPS,
-  createPreCommitment, getPreCommitment, respondToPreCommitment, buyerRespondToCounter,
+  createPreCommitment, getPreCommitment, activeCommittedQuantity,
+  respondToPreCommitment, buyerRespondToCounter,
   linkTransaction, getPreCommitmentByTransactionId, fulfillStep, completePreCommitment,
   preCommitmentsForListing, preCommitmentsForBuyer, preCommitmentsForFarmer,
   listAllPreCommitments,

@@ -75,9 +75,11 @@ router.post("/", requireAuth, async (req, res) => {
   if (!["open", "pre_committed"].includes(listing.status)) {
     return res.status(409).json({ error: `listing is not purchasable (status: ${listing.status})` });
   }
-  if (q > listing.quantity) {
+  const reserved = await precommitmentsRepo.activeCommittedQuantity(listingId);
+  const remaining = Math.max(0, listing.quantity - reserved);
+  if (q > remaining) {
     return res.status(400).json({
-      error: `quantity cannot exceed the listed amount of ${listing.quantity} ${listing.unit}`,
+      error: `quantity cannot exceed the remaining listed amount of ${remaining} ${listing.unit}`,
     });
   }
   if (listing.minimumPrice != null && p < listing.minimumPrice) {

@@ -63,6 +63,40 @@ async function setListingStatus(id, status) {
   return r.rowCount ? ROW_TO_LISTING(r.rows[0]) : null;
 }
 
+// Record a completed sale: reduce the listed quantity by the bags actually sold and
+// close the listing only when stock is exhausted. A partially sold listing returns to
+// 'open' so its remainder can still be bought. The whole update is one guarded
+// statement so repeated completion callbacks cannot decrement twice.
+async function recordSale(id, soldQuantity) {
+  const sold = Number(soldQuantity);
+  if (!Number.isFinite(sold) || sold <= 0) return null;
+  const r = await query(
+    `WITH calc AS (
+       SELECT id,
+              GREATEST(quantity - $2, 0) AS new_quantity,
+              CASE WHEN quantity - $2 <= 0 THEN 'sold'::listing_status
+                   WHEN status = 'pre_committed'::listing_status THEN 'open'::listing_status
+                   ELSE status END AS new_status
+       FROM listings
+       WHERE id = $1 AND status <> 'sold'::listing_status
+     )
+     UPDATE listings l
+     SET quantity = c.new_quantity,
+         status = c.new_status,
+         status_history = CASE
+           WHEN c.new_status IS DISTINCT FROM l.status
+           THEN l.status_history || jsonb_build_array(jsonb_build_object(
+                  'status', c.new_status::text,
+                  'at', to_char(now(), 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')))
+           ELSE l.status_history END
+     FROM calc c
+     WHERE l.id = c.id
+     RETURNING l.*`,
+    [id, sold]
+  );
+  return r.rowCount ? ROW_TO_LISTING(r.rows[0]) : null;
+}
+
 // Update the editable fields of a listing. Only the owning farmer is allowed
 // (enforced in the route). Returns the updated listing or null if not found.
 async function updateListing(id, { cropType, quantity, unit, harvestDate, askingPrice, minimumPrice, location, region, district, gpsAddress, details, maturity, farmId }) {
@@ -138,6 +172,6 @@ async function searchListings({ cropType, location, status, farmerId, includeDel
 
 module.exports = {
   LISTING_STATUSES,
-  createListing, updateListingImages, updateListing, setListingStatus,
+  createListing, updateListingImages, updateListing, setListingStatus, recordSale,
   deleteListing, getListing, searchListings,
 };

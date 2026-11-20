@@ -152,11 +152,7 @@ export default function Login() {
             />
           </div>
           <div className="text-right -mt-2">
-<<<<<<< HEAD
             <Link to="/forgot-password" className="text-sm text-leaf hover:underline" target="_blank" rel="noopener noreferrer">
-=======
-            <Link to="/forgot-password" className="text-sm text-leaf hover:underline">
->>>>>>> origin/development
               Forgot password?
             </Link>
           </div>
@@ -305,17 +301,12 @@ export default function Login() {
 
       <p className="mt-6 text-center text-sm text-muted">
         Don&apos;t have an account?{' '}
-<<<<<<< HEAD
         <Link to="/register" className="font-medium text-leaf hover:underline" target="_blank" rel="noopener noreferrer">
-=======
-        <Link to="/register" className="font-medium text-leaf hover:underline">
->>>>>>> origin/development
           Register
         </Link>
       </p>
 
       <p className="mt-4 flex items-center justify-center gap-3 text-center text-xs text-muted">
-<<<<<<< HEAD
         <Link to="/about" className="hover:text-leaf hover:underline" target="_blank" rel="noopener noreferrer">
           About Us
         </Link>
@@ -325,17 +316,6 @@ export default function Login() {
         </Link>
         <span aria-hidden="true">·</span>
         <Link to="/privacy" className="hover:text-leaf hover:underline" target="_blank" rel="noopener noreferrer">
-=======
-        <Link to="/about" className="hover:text-leaf hover:underline">
-          About Us
-        </Link>
-        <span aria-hidden="true">·</span>
-        <Link to="/terms" className="hover:text-leaf hover:underline">
-          Terms
-        </Link>
-        <span aria-hidden="true">·</span>
-        <Link to="/privacy" className="hover:text-leaf hover:underline">
->>>>>>> origin/development
           Privacy
         </Link>
       </p>

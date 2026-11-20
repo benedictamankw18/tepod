@@ -7,10 +7,7 @@ import HorizontalNav from './HorizontalNav'
 import { CartIcon } from './icons'
 import CartDrawer from './CartDrawer'
 import { navLinks } from '../lib/nav'
-<<<<<<< HEAD
 import VerifyProfileModal from './VerifyProfileModal'
-=======
->>>>>>> origin/development
 
 const AppShellContext = createContext(null)
 
@@ -31,10 +28,7 @@ export default function AppShell({ activeId, children }) {
   const isBuyerAccount = isBuyer || isMarketSeller
 
   const [cartOpen, setCartOpen] = useState(false)
-<<<<<<< HEAD
   const [verifyOpen, setVerifyOpen] = useState(false)
-=======
->>>>>>> origin/development
   const [toast, setToast] = useState('')
   const [market, setMarket] = useState(null)
   const cart = useCart(canHoldCart)
@@ -108,11 +102,7 @@ export default function AppShell({ activeId, children }) {
             verified={user?.verified}
             onVerifyPrompt={() => {
               setCartOpen(false)
-<<<<<<< HEAD
               setVerifyOpen(true)
-=======
-              flashToast('Verify your buyer profile to place an order')
->>>>>>> origin/development
             }}
             onSuccess={() => flashToast('Order placed — growers have been notified')}
           />
@@ -123,11 +113,7 @@ export default function AppShell({ activeId, children }) {
             type="button"
             onClick={() => {
               if (!user?.verified) {
-<<<<<<< HEAD
                 setVerifyOpen(true)
-=======
-                flashToast('Verify your buyer profile to use the cart')
->>>>>>> origin/development
                 return
               }
               setCartOpen(true)
@@ -147,12 +133,8 @@ export default function AppShell({ activeId, children }) {
           </button>
         )}
 
-<<<<<<< HEAD
         <VerifyProfileModal open={verifyOpen} onClose={() => setVerifyOpen(false)} />
           {toast && (
-=======
-        {toast && (
->>>>>>> origin/development
           <div
             role="status"
             aria-live="polite"

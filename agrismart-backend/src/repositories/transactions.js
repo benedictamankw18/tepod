@@ -25,7 +25,7 @@ const ROW_TO_TX = (r) => ({
   payoutReference: r.payout_reference || null,
 });
 
-async function createTransaction({ listingId, buyerId, farmerId, agreedPrice, dueDate, commissionAmount = 0, netAmount = 0, markSold = true }) {
+async function createTransaction({ listingId, buyerId, farmerId, agreedPrice, dueDate, commissionAmount = 0, netAmount = 0, markSold = true, soldQuantity }) {
   const id = randomUUID();
   const r = await query(
     `INSERT INTO transactions (id, listing_id, buyer_id, farmer_id, agreed_price, commission_amount, net_amount, due_date)
@@ -33,8 +33,14 @@ async function createTransaction({ listingId, buyerId, farmerId, agreedPrice, du
     [id, listingId, buyerId, farmerId, agreedPrice, commissionAmount, netAmount, dueDate]
   );
   // For the pre-commitment lifecycle the listing stays 'pre_committed' until the
-  // commitment completes; a manually confirmed sale (admin/farmer) marks it sold now.
-  if (markSold) await listings.setListingStatus(listingId, "sold");
+  // commitment completes; a manually confirmed sale (admin/farmer) reduces stock now.
+  // When no quantity is supplied the whole listing is treated as sold (legacy behaviour).
+  if (markSold) {
+    const qty = soldQuantity == null
+      ? (await listings.getListing(listingId))?.quantity
+      : Number(soldQuantity);
+    if (qty > 0) await listings.recordSale(listingId, qty);
+  }
   return ROW_TO_TX(r.rows[0]);
 }
 

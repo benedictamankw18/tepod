@@ -8,10 +8,7 @@ import AppShell, { useAppShell } from '../components/AppShell'
 import ProductCard from '../components/ProductCard'
 import { Panel } from '../components/Panel'
 import Modal from '../components/Modal'
-<<<<<<< HEAD
 import VerifyProfileModal from '../components/VerifyProfileModal'
-=======
->>>>>>> origin/development
 import Reveal from '../components/Reveal'
 import Button from '../components/Button'
 import ListingForm from '../components/ListingForm'
@@ -28,10 +25,7 @@ function ProduceDetailContent() {
   const [active, setActive] = useState(0)
   const [qty] = useState(1)
   const [editing, setEditing] = useState(false)
-<<<<<<< HEAD
   const [verifyOpen, setVerifyOpen] = useState(false)
-=======
->>>>>>> origin/development
   const [photosOpen, setPhotosOpen] = useState(false)
   const [similar, setSimilar] = useState([])
   const [reviewData, setReviewData] = useState(null)
@@ -315,17 +309,8 @@ function ProduceDetailContent() {
               </div>
             </Panel>
 
-<<<<<<< HEAD
             {isUnverifiedOwner ? (
                <VerifyProfileModal open={verifyOpen} onClose={() => setVerifyOpen(false)} />
-=======
-           
-
-            {isUnverifiedOwner ? (
-              <div className="rounded-[10px] border border-warn/40 bg-warn-soft px-4 py-3 font-sans text-sm text-warn">
-                Verify your farmer profile before you can edit or manage this listing.
-              </div>
->>>>>>> origin/development
             ) : isOwner ? (
               <>
                 {item.status === 'deactivated' ? (
@@ -395,11 +380,7 @@ function ProduceDetailContent() {
                     size="lg"
                     onClick={() => {
                       if (!user?.verified) {
-<<<<<<< HEAD
                         setVerifyOpen(true)
-=======
-                        flashToast('Verify your profile to place an order.')
->>>>>>> origin/development
                         navigate('/verify')
                         return
                       }
