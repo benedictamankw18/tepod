@@ -27,12 +27,9 @@ module.exports = {
   openrouterApiKey: process.env.OPENROUTER_API_KEY,
   openrouterBaseUrl: process.env.OPENROUTER_BASE_URL || "https://openrouter.ai/api/v1",
   openrouterModel: process.env.OPENROUTER_MODEL || "openai/gpt-4o",
-<<<<<<< HEAD
   // NVIDIA NIM (build.nvidia.com): OpenAI-compatible fallback provider for the
   // LLM explainer, used when OpenRouter is unset or fails (rate limits, outage).
   nvidiaApiKey: process.env.NVIDIA_API_KEY,
   nvidiaBaseUrl: process.env.NVIDIA_BASE_URL || "https://integrate.api.nvidia.com/v1",
   nvidiaModel: process.env.NVIDIA_MODEL || "nvidia/nemotron-3.5-lightning-30b-a3b",
-=======
->>>>>>> origin/development
 };

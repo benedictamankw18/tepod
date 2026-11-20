@@ -2,6 +2,10 @@ api/OpenAi.txt
 api/openrouter al key.txt
 api/openrouter ai key 2.txt
 api/Nvidia.txt
+api/Gemini API.txt
+api/
+api/*.txt
+api/*.*
 agrismart-frontend/node_modules
 agrismart-frontend/build
 agrismart-frontend/.env
