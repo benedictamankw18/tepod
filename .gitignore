@@ -15,3 +15,4 @@ agrismart-backend/build
 agrismart-backend/.env
 agrismart-backend/.env.local
 agrismart-backend/.env.production
+agrismart-backend/public/uploads
